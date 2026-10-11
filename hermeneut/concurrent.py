@@ -68,19 +68,3 @@ class ConcurrentAnalyzer:
     def _create_workflow(self) -> Workflow:
         thread_store = Store(self.store.path)
         return Workflow(thread_store, self.provider)
-
-
-class RateLimitedWorkflow:
-    def __init__(self, workflow: Workflow, rpm: int = 30):
-        self._workflow = workflow
-        self._rpm = rpm
-        self._semaphore = asyncio.Semaphore(rpm)
-
-    async def run(self, project_id: str, participant_id: str,
-                  source_ids: list[str], idem: str) -> AnalysisRun:
-        loop = asyncio.get_running_loop()
-        async with self._semaphore:
-            return await loop.run_in_executor(
-                None,
-                lambda: self._workflow.run(project_id, participant_id, source_ids, idem),
-            )

@@ -81,6 +81,8 @@ class Workflow:
         p = self.store.get_participant(project_id, participant_id)
         if not p or p.withdrawn_at or p.consent_scope.withdrawn_at:
             raise PermissionError('PARTICIPANT_WITHDRAWN')
+        if self._consent_expired(p.consent_scope.expires_at):
+            raise PermissionError('CONSENT_EXPIRED')
 
         docs = [self.store.get_document(x) for x in source_ids]
         if any(not d or d.participant_id != participant_id or d.project_id != project_id for d in docs):

@@ -122,11 +122,14 @@ def _format_dialectical(result) -> str:
         s = result.phase3_synthesis
         parts.append("\n### Phase 3: Synthesis\n")
         if s.convergence:
-            parts.append(f"Convergence: {s.convergence[:300]}")
+            conv_text = '; '.join(str(c) for c in s.convergence)
+            parts.append(f"Convergence: {conv_text[:500]}")
         if s.divergence:
-            parts.append(f"Divergence: {s.divergence[:300]}")
+            div_text = '; '.join(str(d) for d in s.divergence)
+            parts.append(f"Divergence: {div_text[:500]}")
         if s.unique_insights:
-            parts.append(f"Unique insights: {s.unique_insights[:300]}")
+            ins_text = '; '.join(str(u) for u in s.unique_insights)
+            parts.append(f"Unique insights: {ins_text[:500]}")
 
     if result.phase4_report:
         parts.append(f"\n### Phase 4: Report\n{result.phase4_report[:2000]}")
@@ -210,7 +213,7 @@ async def _analyze(args: dict) -> list[types.TextContent]:
     if not text.strip():
         return [types.TextContent(type="text", text="Error: empty text")]
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     doc_id = await loop.run_in_executor(None, _ingest_text, text)
 
     _ensure_setup()
@@ -229,7 +232,7 @@ async def _dialectical(args: dict) -> list[types.TextContent]:
     if not text.strip():
         return [types.TextContent(type="text", text="Error: empty text")]
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     doc_id = await loop.run_in_executor(None, _ingest_text, text)
 
     _ensure_setup()

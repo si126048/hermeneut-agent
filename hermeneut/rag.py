@@ -65,7 +65,7 @@ def _split_paragraphs(text: str) -> list[tuple[int, int, str]]:
 
 def read_source(path: str):
     p=Path(path); suffix=p.suffix.lower()
-    if suffix in ('.txt','.md'): return p.read_text(encoding='utf-8')
+    if suffix in ('.txt', '.md', '.json'): return p.read_text(encoding='utf-8')
     if suffix=='.pdf':
         try:
             from pypdf import PdfReader

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -25,6 +26,84 @@ class Participant(BaseModel):
     pseudonym: str
     consent_scope: ConsentScope
     withdrawn_at: str | None = None
+
+
+class InterviewState(StrEnum):
+    CREATED = 'CREATED'
+    IN_PROGRESS = 'IN_PROGRESS'
+    PAUSED = 'PAUSED'
+    COMPLETED = 'COMPLETED'
+    WITHDRAWN = 'WITHDRAWN'
+
+
+class InterviewQuestion(BaseModel):
+    id: str
+    text: str = Field(min_length=1, max_length=2000)
+    stage: str = 'default'
+    module_id: str = 'core'
+    module_title: str = '访谈'
+    context_hint: str = ''
+    required: bool = True
+    allow_followup: bool = True
+
+
+class InterviewConfig(BaseModel):
+    config_id: str
+    version: str = '1.0'
+    title: str = '研究访谈'
+    research_goal: str = ''
+    questions: list[InterviewQuestion] = Field(min_length=1)
+    max_primary_questions: int = Field(default=8, ge=1, le=8)
+    max_followups: int = Field(default=6, ge=0, le=6)
+
+    @model_validator(mode='after')
+    def validate_questions(self):
+        ids = [question.id for question in self.questions]
+        if len(ids) != len(set(ids)):
+            raise ValueError('DUPLICATE_INTERVIEW_QUESTION_ID')
+        if len(self.questions) > self.max_primary_questions:
+            raise ValueError('INTERVIEW_QUESTION_LIMIT_EXCEEDED')
+        return self
+
+
+class InterviewTurn(BaseModel):
+    question_id: str
+    question_text: str
+    answer_text: str = Field(min_length=1, max_length=20000)
+    kind: str = 'primary'
+    parent_question_id: str | None = None
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    asked_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+    answered_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+    @model_validator(mode='after')
+    def validate_kind(self):
+        if self.kind not in {'primary', 'followup'}:
+            raise ValueError('INVALID_INTERVIEW_TURN_KIND')
+        if self.kind == 'followup' and not self.parent_question_id:
+            raise ValueError('FOLLOWUP_PARENT_REQUIRED')
+        return self
+
+
+class InterviewSession(BaseModel):
+    id: str
+    project_id: str
+    participant_id: str
+    config_id: str
+    state: InterviewState = InterviewState.CREATED
+    current_question_id: str | None = None
+    current_question_text: str | None = None
+    current_question_kind: str = 'primary'
+    current_parent_question_id: str | None = None
+    primary_index: int = 0
+    followup_count: int = 0
+    turns: list[InterviewTurn] = Field(default_factory=list)
+    source_id: str | None = None
+    run_id: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    audit: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 class SourceDocument(BaseModel):
     id: str
     project_id: str

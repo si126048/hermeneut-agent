@@ -171,9 +171,8 @@ def _format_analysis_packet(packet) -> str:
     if packet.observations:
         lines.append(f"### 观察（{len(packet.observations)}）\n")
         for o in packet.observations:
-            lines.append(f"- **{o.id}**: {o.label}")
-            markers = f" | Register: {o.rsi_register}" if o.rsi_register else ""
-            lines.append(f"  - 寄存器: {o.rsi_register}{markers}\n")
+            reg = f" [{o.rsi_register}]" if o.rsi_register else ""
+            lines.append(f"- **{o.id}**: {o.label}{reg}\n")
     if packet.hypotheses:
         lines.append(f"\n### 假设（{len(packet.hypotheses)}）\n")
         for h in packet.hypotheses:
@@ -220,11 +219,14 @@ def _format_dialectical_result(result) -> str:
         s = result.phase3_synthesis
         lines.append("\n---\n### Phase 3: 综合\n")
         if s.convergence:
-            lines.append(f"**收敛**: {s.convergence[:200]}\n")
+            conv_text = '; '.join(str(c) for c in s.convergence)
+            lines.append(f"**收敛**: {conv_text[:500]}\n")
         if s.divergence:
-            lines.append(f"**分歧**: {s.divergence[:200]}\n")
+            div_text = '; '.join(str(d) for d in s.divergence)
+            lines.append(f"**分歧**: {div_text[:500]}\n")
         if s.unique_insights:
-            lines.append(f"**独特洞见**: {s.unique_insights[:200]}\n")
+            ins_text = '; '.join(str(u) for u in s.unique_insights)
+            lines.append(f"**独特洞见**: {ins_text[:500]}\n")
         if s.recommended_hypotheses:
             lines.append(f"**推荐假设**: {len(s.recommended_hypotheses)} 条\n")
 

@@ -39,6 +39,10 @@ class Store:
         CREATE TABLE IF NOT EXISTS spans(id TEXT PRIMARY KEY, document_id TEXT, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS concepts(id TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, project_id TEXT, participant_id TEXT, idem TEXT, data TEXT NOT NULL, UNIQUE(project_id,idem));
+        CREATE TABLE IF NOT EXISTS interview_sessions(
+            id TEXT PRIMARY KEY, project_id TEXT NOT NULL, participant_id TEXT NOT NULL,
+            state TEXT NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
         CREATE VIRTUAL TABLE IF NOT EXISTS document_fts USING fts5(document_id UNINDEXED, text);
         CREATE TABLE IF NOT EXISTS _migrations(version INTEGER PRIMARY KEY, description TEXT NOT NULL, applied_at TEXT NOT NULL);
         '''); self.conn.commit()
@@ -127,6 +131,33 @@ class Store:
         r=self.conn.execute('SELECT data FROM runs WHERE id=?',(rid,)).fetchone(); return AnalysisRun.model_validate_json(r['data']) if r else None
     def get_run_by_idem(self,project_id,idem):
         r=self.conn.execute('SELECT data FROM runs WHERE project_id=? AND idem=?',(project_id,idem)).fetchone(); return AnalysisRun.model_validate_json(r['data']) if r else None
+    def put_interview_session(self, session: InterviewSession) -> InterviewSession:
+        self.conn.execute(
+            '''INSERT INTO interview_sessions(id,project_id,participant_id,state,data,created_at,updated_at)
+               VALUES(?,?,?,?,?,?,?)
+               ON CONFLICT(id) DO UPDATE SET state=excluded.state,data=excluded.data,
+               updated_at=excluded.updated_at''',
+            (session.id, session.project_id, session.participant_id, session.state,
+             session.model_dump_json(), session.created_at, session.updated_at),
+        )
+        self.conn.commit()
+        return session
+    def get_interview_session(self, session_id: str, project_id: str | None = None,
+                              participant_id: str | None = None) -> InterviewSession | None:
+        query = 'SELECT data FROM interview_sessions WHERE id=?'
+        args: list[str] = [session_id]
+        if project_id is not None:
+            query += ' AND project_id=?'; args.append(project_id)
+        if participant_id is not None:
+            query += ' AND participant_id=?'; args.append(participant_id)
+        row = self.conn.execute(query, args).fetchone()
+        return InterviewSession.model_validate_json(row['data']) if row else None
+    def list_interview_sessions(self, project_id: str, participant_id: str) -> list[InterviewSession]:
+        rows = self.conn.execute(
+            'SELECT data FROM interview_sessions WHERE project_id=? AND participant_id=? ORDER BY created_at DESC',
+            (project_id, participant_id),
+        ).fetchall()
+        return [InterviewSession.model_validate_json(row['data']) for row in rows]
     def audit(self,run,actor,reason):
         run.audit.append({'actor':actor,'timestamp':datetime.now(UTC).isoformat(),'state':run.state,'reason':reason}); return self.put_run(run)
     def withdraw(self,project_id,pid):
@@ -138,6 +169,21 @@ class Store:
             self.conn.execute('DELETE FROM document_fts WHERE document_id IN (SELECT id FROM documents WHERE project_id=? AND participant_id=?)', (project_id, pid))
             self.conn.execute('DELETE FROM documents WHERE project_id=? AND participant_id=?', (project_id, pid))
             self.conn.execute('DELETE FROM runs WHERE project_id=? AND participant_id=?', (project_id, pid))
+            sessions = self.conn.execute(
+                'SELECT id,data FROM interview_sessions WHERE project_id=? AND participant_id=?',
+                (project_id, pid),
+            ).fetchall()
+            for row in sessions:
+                session = InterviewSession.model_validate_json(row['data'])
+                session.state = InterviewState.WITHDRAWN
+                session.turns = []
+                session.current_question_id = None
+                session.current_question_text = None
+                session.updated_at = datetime.now(UTC).isoformat()
+                self.conn.execute(
+                    'UPDATE interview_sessions SET state=?,data=?,updated_at=? WHERE id=?',
+                    (session.state, session.model_dump_json(), session.updated_at, row['id']),
+                )
             self.conn.execute('UPDATE participants SET data=? WHERE project_id=? AND id=?', (p.model_dump_json(), project_id, pid))
         return p
 

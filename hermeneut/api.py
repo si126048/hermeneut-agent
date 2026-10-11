@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import uuid
@@ -7,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
@@ -14,11 +16,21 @@ from pydantic import BaseModel, Field
 
 from .concurrent import AnalysisTask, ConcurrentAnalyzer
 from .db import Store
+from .interview import InterviewManager
 from .models import *
 from .rag import ingest, search
 from .workflow import Workflow
 
-app=FastAPI(title='Hermeneut-Agent',version='2.0.0')
+app=FastAPI(title='Hermeneut-Agent',version='2.2.0')
+app.add_middleware(
+    CORSMiddleware,
+    # The last origin supports the development workflow of opening index.html
+    # directly from disk.  The normal served UI remains same-origin.
+    allow_origins=['http://127.0.0.1:8000', 'http://localhost:8000', 'null'],
+    allow_credentials=False,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 API_KEY = os.getenv("LACAN_API_KEY")
 security = HTTPBearer(auto_error=False)
@@ -37,6 +49,19 @@ store=Store(); flow=Workflow(store)
 class ProjectIn(BaseModel): id:str; owner_id:str='local-user'; policy_version:str='1.0'
 class ParticipantIn(BaseModel): id:str; project_id:str; pseudonym:str|None=None; consent_scope:ConsentScope=ConsentScope()
 class RunIn(BaseModel): project_id:str; participant_id:str; source_ids:list[str]; mode:str='evidence_first'; idempotency_key:str
+class InterviewCreateIn(BaseModel):
+    project_id: str
+    participant_id: str
+    config_id: str | None = None
+class InterviewTurnIn(BaseModel):
+    project_id: str
+    participant_id: str
+    question_id: str
+    answer_text: str
+    tags: list[str] = Field(default_factory=list)
+class InterviewAccessIn(BaseModel):
+    project_id: str
+    participant_id: str
 
 MAX_UPLOAD_BYTES = int(os.getenv('LACAN_MAX_UPLOAD_BYTES', str(10 * 1024 * 1024)))
 UPLOAD_SUFFIXES = {'.txt', '.md', '.pdf'}
@@ -72,6 +97,24 @@ def _consent_active(scope: ConsentScope) -> bool:
         return expiry > datetime.now(UTC)
     except ValueError:
         return False
+
+def _interview_manager() -> InterviewManager:
+    try:
+        provider = _get_provider()
+    except Exception:
+        from .llm import FakeProvider
+        provider = FakeProvider()
+    return InterviewManager(store, provider)
+
+def _interview_participant(project_id: str, participant_id: str):
+    if not store.get_project(project_id):
+        raise HTTPException(404, 'PROJECT_NOT_FOUND')
+    participant = store.get_participant(project_id, participant_id)
+    if not participant:
+        raise HTTPException(404, 'PARTICIPANT_NOT_FOUND')
+    if participant.withdrawn_at or not _consent_active(participant.consent_scope):
+        raise HTTPException(403, 'PARTICIPANT_WITHDRAWN')
+    return participant
 
 def err(status,code,msg):
     rid='req_'+uuid.uuid4().hex[:10]
@@ -116,25 +159,112 @@ def source(pid:str, project_id: str = Form(...), file: UploadFile = File(...)):
     if p.withdrawn_at or not _consent_active(p.consent_scope):raise HTTPException(403,'PARTICIPANT_WITHDRAWN')
     try:return _ingest_upload(file, project_id, pid, p.consent_scope).model_dump(exclude={'text', 'origin'})
     except ValueError as e: raise HTTPException(422,str(e))
+
+@app.post('/api/v1/interviews', status_code=201, dependencies=[Depends(verify_api_key)])
+def create_interview(x: InterviewCreateIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        manager = _interview_manager()
+        session, config = manager.create(x.project_id, x.participant_id, x.config_id)
+        return {'session': manager.view(session.id, x.project_id, x.participant_id),
+                'config': config.model_dump(mode='json')}
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(422, str(exc))
+
+@app.get('/api/v1/interviews/{session_id}', dependencies=[Depends(verify_api_key)])
+def get_interview(session_id: str, project_id: str, participant_id: str):
+    _interview_participant(project_id, participant_id)
+    try:
+        return _interview_manager().view(session_id, project_id, participant_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/turns', dependencies=[Depends(verify_api_key)])
+def interview_turn(session_id: str, x: InterviewTurnIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        return _interview_manager().submit(
+            session_id, x.project_id, x.participant_id, x.question_id, x.answer_text, x.tags,
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/pause', dependencies=[Depends(verify_api_key)])
+def pause_interview(session_id: str, x: InterviewAccessIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        return _interview_manager().pause(session_id, x.project_id, x.participant_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/resume', dependencies=[Depends(verify_api_key)])
+def resume_interview(session_id: str, x: InterviewAccessIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        return _interview_manager().resume(session_id, x.project_id, x.participant_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/complete', dependencies=[Depends(verify_api_key)])
+def complete_interview(session_id: str, x: InterviewAccessIn):
+    participant = _interview_participant(x.project_id, x.participant_id)
+    manager = _interview_manager()
+    try:
+        session, payload = manager.complete(session_id, x.project_id, x.participant_id)
+        UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+        artifact_path = UPLOAD_ROOT / f'{session.id}.json'
+        artifact_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+        doc = ingest(store, str(artifact_path), x.project_id, x.participant_id, participant.consent_scope)
+        run = flow.run(x.project_id, x.participant_id, [doc.id], f'interview_{session.id}')
+        session.source_id = doc.id
+        session.run_id = run.id
+        session.audit.append({'event': 'completed', 'artifact_path': str(artifact_path), 'timestamp': datetime.now(UTC).isoformat()})
+        store.put_interview_session(session)
+        return {'session': manager.view(session.id, x.project_id, x.participant_id),
+                'source_id': doc.id, 'run_id': run.id, 'state': run.state}
+    except (KeyError, ValueError, OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/withdraw', dependencies=[Depends(verify_api_key)])
+def withdraw_interview(session_id: str, x: InterviewAccessIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        return _interview_manager().withdraw(session_id, x.project_id, x.participant_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
+@app.post('/api/v1/interviews/{session_id}/reset', dependencies=[Depends(verify_api_key)])
+def reset_interview(session_id: str, x: InterviewAccessIn):
+    _interview_participant(x.project_id, x.participant_id)
+    try:
+        manager = _interview_manager()
+        previous, fresh = manager.reset(session_id, x.project_id, x.participant_id)
+        return {
+            'previous_session_id': previous.id,
+            'session': manager.view(fresh.id, x.project_id, x.participant_id),
+        }
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404 if isinstance(exc, KeyError) else 422, str(exc))
+
 @app.post('/api/v1/analysis-runs',status_code=202,dependencies=[Depends(verify_api_key)])
 def analysis(x:RunIn):
     try:r=flow.run(x.project_id,x.participant_id,x.source_ids,x.idempotency_key); return {'run_id':r.id,'state':r.state}
     except ValueError as e: raise HTTPException(422,str(e))
 @app.get('/api/v1/analysis-runs/{rid}',dependencies=[Depends(verify_api_key)])
-def run(rid):
+def run(rid: str):
     result = store.get_run(rid)
     if not result: raise HTTPException(404, 'RUN_NOT_FOUND')
     return result.model_dump(mode='json')
 @app.post('/api/v1/analysis-runs/{rid}/reviews',dependencies=[Depends(verify_api_key)])
 def review(rid:str,x:ReviewRequest):return flow.review(rid,x).model_dump(mode='json')
 @app.get('/api/v1/analysis-runs/{rid}/packet',dependencies=[Depends(verify_api_key)])
-def packet(rid):
+def packet(rid: str):
     r=store.get_run(rid)
     if not r: raise HTTPException(404, 'RUN_NOT_FOUND')
     if not r.packet or r.state not in (RunState.APPROVED,RunState.COMPILED,RunState.NEEDS_HUMAN_REVIEW): raise HTTPException(409, 'NOT_APPROVED')
     return r.packet.model_dump(mode='json')
 @app.get('/api/v1/analysis-runs/{rid}/graph',dependencies=[Depends(verify_api_key)])
-def graph(rid):
+def graph(rid: str):
     try:return flow.export(rid)['graph']
     except PermissionError as e: raise HTTPException(409, str(e))
 @app.post('/api/v1/participants/{pid}/withdraw',status_code=202,dependencies=[Depends(verify_api_key)])
@@ -146,13 +276,14 @@ class BatchTaskIn(BaseModel): project_id:str; participant_id:str; source_ids:lis
 class BatchIn(BaseModel): tasks:list[BatchTaskIn]; max_concurrent:int=Field(default=4, ge=1, le=16)
 @app.post('/api/v1/analysis-runs/batch',status_code=202,dependencies=[Depends(verify_api_key)])
 async def batch_analysis(x:BatchIn):
-    analyzer=ConcurrentAnalyzer(store,max_concurrent=x.max_concurrent)
+    provider=_get_provider()
+    analyzer=ConcurrentAnalyzer(store,provider=provider,max_concurrent=x.max_concurrent)
     atasks=[AnalysisTask(project_id=t.project_id,participant_id=t.participant_id,source_ids=t.source_ids,idempotency_key=t.idempotency_key) for t in x.tasks]
     results=await analyzer.analyze_batch(atasks)
     return {'results':[{'participant_id':r.task.participant_id,'run_id':r.run.id if r.run else None,'state':r.run.state if r.run else None,'error':r.error} for r in results]}
 
 def _get_provider():
-    if os.getenv('LACAN_MOCK'):
+    if os.getenv('LACAN_MOCK') or not os.getenv('DASHSCOPE_API_KEY'):
         from .llm import FakeProvider
         return FakeProvider()
     from .llm import QwenProvider
@@ -163,15 +294,22 @@ class DialecticalRunIn(BaseModel):
     perspective_ids: list[str]; idempotency_key: str; generate_report: bool = False
 @app.post('/api/v1/dialectical/run', status_code=202, dependencies=[Depends(verify_api_key)])
 def dialectical_run(x: DialecticalRunIn):
-    from .dialectical import DialecticalWorkflow
-    from .perspectives import PerspectiveRegistry
-    registry = PerspectiveRegistry()
-    perspectives = registry.load_many(x.perspective_ids)
-    provider = _get_provider()
-    dw = DialecticalWorkflow(store, provider, perspectives)
-    result = dw.run(x.project_id, x.participant_id, x.source_ids, x.idempotency_key,
-                    generate_report=x.generate_report)
-    return result.model_dump(mode='json')
+    try:
+        from .dialectical import DialecticalWorkflow
+        from .perspectives import PerspectiveRegistry
+        registry = PerspectiveRegistry()
+        perspectives = registry.load_many(x.perspective_ids)
+        provider = _get_provider()
+        dw = DialecticalWorkflow(store, provider, perspectives)
+        result = dw.run(x.project_id, x.participant_id, x.source_ids, x.idempotency_key,
+                        generate_report=x.generate_report)
+        return result.model_dump(mode='json')
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc))
 
 @app.get('/api/v1/perspectives', dependencies=[Depends(verify_api_key)])
 def list_perspectives_api():

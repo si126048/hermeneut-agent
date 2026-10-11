@@ -2,7 +2,7 @@
 
 **对抗性多视角话语分析工具** — 形式化记号驱动的多理论视角辩证分析，产出可追溯的证据化主体结构画像。
 
-> v2.2 · Python 3.12+ · 277 tests · MIT
+> v2.2 · Python 3.12+ · 284 tests · MIT
 
 ---
 
@@ -207,6 +207,7 @@ uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
 ```
 
 默认仅绑定本机地址。设置 `LACAN_API_KEY` 环境变量启用 Bearer Token 认证；不设置时无需认证。
+未配置 `DASHSCOPE_API_KEY` 时，Web API 会自动使用本地 `FakeProvider`，可直接运行分析和辩证分析演示；配置后才调用 Qwen。
 
 ### 端点
 
@@ -223,6 +224,14 @@ uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
 | `POST` | `/api/v1/participants/{pid}/withdraw` | 撤回参与者 |
 | `POST` | `/api/v1/dialectical/run` | 运行多视角辩证分析 |
 | `GET` | `/api/v1/perspectives` | 列出可用理论视角 |
+| `POST` | `/api/v1/interviews` | 创建交互式访谈会话 |
+| `GET` | `/api/v1/interviews/{session_id}` | 查询访谈状态和当前问题 |
+| `POST` | `/api/v1/interviews/{session_id}/turns` | 提交访谈回答并推进问题 |
+| `POST` | `/api/v1/interviews/{session_id}/pause` | 暂停访谈 |
+| `POST` | `/api/v1/interviews/{session_id}/resume` | 恢复访谈 |
+| `POST` | `/api/v1/interviews/{session_id}/complete` | 导出 interview JSON 并启动分析 |
+| `POST` | `/api/v1/interviews/{session_id}/withdraw` | 撤回访谈会话 |
+| `POST` | `/api/v1/interviews/{session_id}/reset` | 清零并创建新的访谈会话 |
 
 ### 示例
 
@@ -253,6 +262,11 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
 
 浏览器访问 `http://127.0.0.1:8000` 即可使用图形界面（启动方式同上 `uvicorn hermeneut.api:app`）。
 
+Windows 下也可以在项目根目录执行 `.\start-webui.ps1` 启动服务。
+
+开发时也可以直接打开 `hermeneut/static/index.html`；此时页面会把 API 请求转发到
+`http://127.0.0.1:8000`，仍需先启动同一个 Uvicorn 服务。
+
 ### 功能
 
 - **聊天式分析**：输入文本或上传文件（`.txt / .md / .pdf`），查看 Observation / Hypothesis 卡片
@@ -260,6 +274,7 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
 - **视角面板**：查看已注册视角的概念清单与盲点
 - **文档上传**：拖拽上传到 PageIndex 文档系统
 - **语料检索**：搜索已索引的理论文档
+- **交互式访谈**：固定主问题结合受限动态追问，支持暂停、恢复、完成和撤回
 
 ### API Key
 
@@ -353,7 +368,7 @@ MCP 客户端配置示例（Qoder / Claude Desktop）：
 ## 开发
 
 ```bash
-pytest tests/ -q          # 运行全部测试 (277)
+pytest tests/ -q          # 运行全部测试 (284)
 ruff check hermeneut/     # 代码检查
 ```
 
