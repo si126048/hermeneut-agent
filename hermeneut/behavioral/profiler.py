@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
-import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from .chat_parser import load_participant_messages, read_text, load_normalized_messages
+from .chat_parser import load_normalized_messages, load_participant_messages, read_text
 from .extractor import (
     MessageExtractor,
     compute_signature_phrases,
     compute_unique_expressions,
 )
-from .models import BehavioralProfile, DistillationCard, StructuralSummary, ProfileArtifact, ConsentPolicy, SourceManifest
 from .inference import infer_claims
+from .models import (
+    BehavioralProfile,
+    ConsentPolicy,
+    DistillationCard,
+    ProfileArtifact,
+    SourceManifest,
+    StructuralSummary,
+)
 
 PARTICIPANT_FILES = {
     "弋": "弋.txt",
@@ -222,7 +229,7 @@ class BehavioralProfiler:
             participant_id=pseudonym,
             pseudonym=pseudonym,
             schema_version='1.0',
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             source_manifest=[SourceManifest(
                 source_id=path.stem, path=str(path), checksum=digest,
                 message_count=len(messages), format=path.suffix.lower().lstrip('.') or 'plain',
@@ -308,7 +315,7 @@ class BehavioralProfiler:
                 lines.append("")
 
         lines.append("【不要做的事】")
-        lines.append(f"- 不要发长段落（你很少超过50字）")
+        lines.append("- 不要发长段落（你很少超过50字）")
         if prof and prof.short_msg_ratio > 0.3:
             lines.append("- 不要连续发多条完整句子（你习惯碎片化发送）")
         if prof and prof.question_ratio > 0.3:

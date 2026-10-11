@@ -1,9 +1,12 @@
 from __future__ import annotations
-import logging, re
+
+import logging
+import re
 from pathlib import Path
-from .db import Store, checksum, new_id
-from .models import SourceDocument, EvidenceSpan, ConceptCard, ConsentScope
+
 from .credentials import redact_credentials
+from .db import Store, checksum, new_id
+from .models import ConsentScope, EvidenceSpan, SourceDocument
 
 logger = logging.getLogger(__name__)
 MAX_SPAN_CHARS = 2000
@@ -38,9 +41,7 @@ def _split_chat_messages(text: str) -> list[tuple[int, int, str]]:
                 segments.append((current_start, current_start + len('\n'.join(current_lines)), merged))
             current_lines = []
             current_start = None
-        if is_msg_start:
-            current_start = pos
-        elif current_start is None and line.strip():
+        if is_msg_start or current_start is None and line.strip():
             current_start = pos
         if line.strip():
             current_lines.append(line)

@@ -8,9 +8,16 @@ from __future__ import annotations
 import hashlib
 import re
 from collections import Counter, defaultdict
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
-from .models import ConversationWindow, InteractionEvent, MessageRecord, RelationGraph, TransformAnnotation
+from .models import (
+    ConversationWindow,
+    InteractionEvent,
+    MessageRecord,
+    RelationGraph,
+    TransformAnnotation,
+)
 
 _PUNCT = re.compile(r"([!?！？。．…])\1+")
 _HOMO = re.compile(r"(?P<a>[\u4e00-\u9fff])(?P<b>[a-zA-Z0-9])")

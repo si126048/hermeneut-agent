@@ -1,4 +1,4 @@
-from .registry import PerspectiveRegistry, get_perspective, list_perspectives
 from ..models import PerspectiveConfig
+from .registry import PerspectiveRegistry, get_perspective, list_perspectives
 
-__all__ = ['PerspectiveRegistry', 'PerspectiveConfig', 'get_perspective', 'list_perspectives']
+__all__ = ['PerspectiveConfig', 'PerspectiveRegistry', 'get_perspective', 'list_perspectives']

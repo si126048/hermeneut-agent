@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-import logging
-
-from .models import EvidenceClaim, StructuralClaim, STRUCTURAL_DIMENSIONS
-from .models import RelationshipClaim, RELATION_TYPES
+from .models import (
+    RELATION_TYPES,
+    STRUCTURAL_DIMENSIONS,
+    EvidenceClaim,
+    RelationshipClaim,
+    StructuralClaim,
+)
 from .text_analysis import make_windows
 
 _logger = logging.getLogger(__name__)

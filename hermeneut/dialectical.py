@@ -8,17 +8,20 @@ Orchestrates four phases:
 """
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timezone
 
+from .db import Store, new_id
 from .models import (
-    PerspectiveConfig, PerspectiveAnalysis, CrossCritique,
-    SynthesisReport, DialecticalResult, Observation, Hypothesis,
-    Counterexample, RunState,
+    Counterexample,
+    CrossCritique,
+    DialecticalResult,
+    Hypothesis,
+    Observation,
+    PerspectiveAnalysis,
+    PerspectiveConfig,
+    SynthesisReport,
 )
 from .workflow import Workflow
-from .db import Store, new_id
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +101,7 @@ class DialecticalWorkflow:
 
     def _perspective_interpret(self, perspective: PerspectiveConfig,
                                observations: list[Observation]) -> list[Hypothesis]:
-        obs_labels = [{'id': o.id, 'label': o.label, 'register': o.register} for o in observations]
+        obs_labels = [{'id': o.id, 'label': o.label, 'register': o.rsi_register} for o in observations]
         payload = {
             'observation_ids': [o.id for o in observations],
             'observation_labels': obs_labels,

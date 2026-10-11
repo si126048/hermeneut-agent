@@ -1,16 +1,28 @@
 from __future__ import annotations
+
 import logging
-from datetime import datetime, timezone
-from .db import Store, new_id
-from .models import (
-    AnalysisRun, AnalysisPacket, RunState, ReviewStatus, ReviewDecision,
-    ReviewRequest, EvidenceSpan, Observation, Hypothesis,
-    GraphNode, GraphEdge, NarrativeOperator, Counterexample,
-)
-from .llm import FakeProvider, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, CRITIC_SYSTEM
-from .rag import validate_span
-from .fuzzy import MembershipFunction, aggregate_grounding, HallucinationGuard, FuzzyGrounding
+from datetime import UTC, datetime
+
 from .annotation import CulturalAnnotator
+from .db import Store, new_id
+from .fuzzy import HallucinationGuard, MembershipFunction, aggregate_grounding
+from .llm import CRITIC_SYSTEM, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, FakeProvider
+from .models import (
+    AnalysisPacket,
+    AnalysisRun,
+    Counterexample,
+    EvidenceSpan,
+    GraphEdge,
+    GraphNode,
+    Hypothesis,
+    NarrativeOperator,
+    Observation,
+    ReviewDecision,
+    ReviewRequest,
+    ReviewStatus,
+    RunState,
+)
+from .rag import validate_span
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +111,8 @@ class Workflow:
         try:
             expiry = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
             if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            return expiry <= datetime.now(timezone.utc)
+                expiry = expiry.replace(tzinfo=UTC)
+            return expiry <= datetime.now(UTC)
         except ValueError:
             return True
 

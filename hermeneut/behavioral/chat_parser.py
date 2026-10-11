@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import re
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +14,7 @@ SEPARATOR_RE = re.compile(r"^-{10,}$")
 TIMESTAMP_RE = re.compile(r"^\[(\d{2}-\d{2}-\d{2}\s+\d{2}:\d{2})\]$")
 MESSAGE_RE = re.compile(r"^【(.+?)】：(.*)$")
 MENTION_RE = re.compile(r"@([^\s@：:，,。！？!?]+)")
-QUOTE_RE = re.compile(r"(?:引用|回复|reply)\s*[:：]?\s*([\w-]+)", re.I)
+QUOTE_RE = re.compile(r"(?:引用|回复|reply)\s*[:：]?\s*([\w-]+)", re.IGNORECASE)
 
 
 def load_participant_messages(path: str | Path) -> list[str]:
@@ -42,7 +42,7 @@ def read_text(path: str | Path) -> str:
 
 
 def stable_message_id(source_id: str, index: int, content: str) -> str:
-    digest = hashlib.sha256(f'{source_id}:{index}:{content}'.encode('utf-8')).hexdigest()[:16]
+    digest = hashlib.sha256(f'{source_id}:{index}:{content}'.encode()).hexdigest()[:16]
     return f'msg_{digest}'
 
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from enum import StrEnum
 from typing import Any
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class RunState(StrEnum):
     CREATED='CREATED'; INGESTED='INGESTED'; OBSERVED='OBSERVED'; INTERPRETED='INTERPRETED'; CRITIQUED='CRITIQUED'; NEEDS_HUMAN_REVIEW='NEEDS_HUMAN_REVIEW'; APPROVED='APPROVED'; COMPILED='COMPILED'; FAILED='FAILED'; CANCELLED='CANCELLED'; REVISION_REQUIRED='REVISION_REQUIRED'
@@ -46,7 +49,7 @@ class ConceptCard(BaseModel):
     id: str; canonical_name: str; definition: str; theoretical_period: str = 'unspecified'; source_span_ids: list[str] = []; review_status: str = 'draft'
 class Observation(BaseModel):
     id: str; label: str; evidence_span_ids: list[str]
-    register: str | None = None
+    rsi_register: str | None = Field(default=None, alias='register')
     register_markers: list[str] = Field(default_factory=list)
 class Counterexample(BaseModel):
     id: str

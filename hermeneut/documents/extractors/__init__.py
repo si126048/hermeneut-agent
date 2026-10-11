@@ -4,6 +4,7 @@
 
 """Format-specific text extractors. Returns (pages, metadata) for any supported file."""
 from __future__ import annotations
+
 from pathlib import Path
 
 _TEXT_SUFFIXES = {'.txt', '.md', '.markdown', '.rst', '.tex', '.text'}

@@ -10,13 +10,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .cli import _ensure_project, _source_for
-from .db import Store
-from .models import ConsentScope, Participant, ReviewDecision, ReviewRequest
-from .rag import ingest, search
-from .workflow import Workflow
 from .behavioral import SubjectProfiler
 from .behavioral.models import ProfileArtifact
+from .cli import _ensure_project, _source_for
+from .db import Store
+from .models import ConsentScope, Participant, ReviewRequest
+from .rag import ingest, search
+from .workflow import Workflow
 
 # ─── Color Palette ────────────────────────────────────────────────
 # Lacan's three registers + scholarly accents

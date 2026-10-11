@@ -5,9 +5,9 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from .models import EvidenceSpan, CulturalAnnotation
+from .models import CulturalAnnotation, EvidenceSpan
 
 logger = logging.getLogger(__name__)
 

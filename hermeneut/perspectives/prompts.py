@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import textwrap
+
 from ..models import PerspectiveConfig
 
 _STAGE_MAP = {
@@ -40,7 +42,7 @@ def build_perspective_prompts(config: PerspectiveConfig, stage: str) -> str:
         if variant:
             return variant
 
-    from ..llm import EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, CRITIC_SYSTEM
+    from ..llm import CRITIC_SYSTEM, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM
     base_prompts = {
         'evidence': EVIDENCE_SYSTEM,
         'interpreter': INTERPRETER_SYSTEM,

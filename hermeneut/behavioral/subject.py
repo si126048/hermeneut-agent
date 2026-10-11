@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-from collections import Counter
 import re
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .inference import infer_structural_claims_full, infer_relationship_claims
+from .inference import infer_relationship_claims, infer_structural_claims_full
 from .materials import load_materials, validate_span_references
 from .models import (
-    ConsentPolicy, CrossSourceFinding, ProfileArtifact, StructuralClaim,
+    ConsentPolicy,
+    CrossSourceFinding,
+    ProfileArtifact,
+    StructuralClaim,
 )
 from .text_analysis import (
-    detect_transform_candidates, extract_interaction_events,
-    build_relation_graph, stable_expression_candidates,
+    build_relation_graph,
+    detect_transform_candidates,
+    extract_interaction_events,
+    stable_expression_candidates,
 )
 
 
@@ -86,7 +91,7 @@ class SubjectProfiler:
         approved = [c for c in claims if c.status == 'approved']
         return ProfileArtifact(
             profile_id=f'subject_{participant_id}', participant_id=participant_id,
-            pseudonym=participant_id, created_at=datetime.now(timezone.utc).isoformat(),
+            pseudonym=participant_id, created_at=datetime.now(UTC).isoformat(),
             schema_version='1.1',
             source_manifest=[{
                 'source_id': s.source_id, 'path': s.path, 'checksum': s.checksum,

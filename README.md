@@ -26,7 +26,7 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 | **证据追溯** | `MaterialSource` → `EvidenceSpan` → `StructuralCandidate`，全链路来源 checksum |
 | **可扩展视角** | 放置 JSON 配置到 `perspectives/` 即可自动注册（福柯、德里达等） |
 | **PageIndex 文档系统** | 内容寻址存储 (SHA-256)、FTS5 全文检索、层级大纲检测、引文验证 |
-| **多格式提取** | txt / md / pdf / html / epub / docx / xlsx / pptx |
+| **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
 

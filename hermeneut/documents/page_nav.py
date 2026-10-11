@@ -4,6 +4,7 @@
 
 """Page-based navigation helpers for indexed documents."""
 from __future__ import annotations
+
 from .store import DocumentStore
 
 

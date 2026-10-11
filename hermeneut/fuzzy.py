@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .models import Hypothesis, EvidenceSpan, Observation
+from .models import EvidenceSpan, Hypothesis, Observation
 
 
 @dataclass

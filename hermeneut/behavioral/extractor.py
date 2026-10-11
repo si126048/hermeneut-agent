@@ -7,7 +7,6 @@ import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
-
 MEDIA_TAGS = {"[表情]", "[图片]", "[视频]", "[分享]", "[音频]", "[文件]"}
 MEDIA_RE = re.compile(r"^\[(?:表情|图片|视频|分享|音频|文件)\]$")
 QUOTE_RE = re.compile(r"^\[引用\]")

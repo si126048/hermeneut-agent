@@ -1,14 +1,19 @@
 from __future__ import annotations
-import json, logging, os, textwrap, time
-from typing import Protocol, Type
-from .models import *
-from .behavioral.inference import PROFILE_INFERENCE_SYSTEM, STRUCTURAL_SYSTEM
+
+import json
+import logging
+import os
+import textwrap
+import time
+from typing import Protocol
+
 from .credentials import detect_credentials
+from .models import *
 
 logger = logging.getLogger(__name__)
 
 class LLMProvider(Protocol):
-    def generate_structured(self, system_prompt: str, user_payload: dict, output_schema: Type[BaseModel], run_context: dict) -> dict: ...
+    def generate_structured(self, system_prompt: str, user_payload: dict, output_schema: type[BaseModel], run_context: dict) -> dict: ...
 
 class EmbeddingProvider(Protocol):
     async def embed(self,texts:list[str])->list[list[float]]: ...
@@ -252,8 +257,8 @@ class QwenProvider:
             user_content = f"观察结果：\n{json.dumps(obs_labels, ensure_ascii=False, indent=2)}\n\n假设：\n{json.dumps(hypotheses_summary, ensure_ascii=False, indent=2)}\n\n请提出反例、模糊否定强度和幻觉风险，返回 JSON。"
             return self._call(FORMAL_CRIT, user_content)
         elif stage == 'dialectical_evidence':
-            from .perspectives.prompts import build_perspective_prompts
             from .models import PerspectiveConfig
+            from .perspectives.prompts import build_perspective_prompts
             perspective_config = run_context.get('perspective_config')
             if perspective_config and isinstance(perspective_config, dict):
                 perspective_config = PerspectiveConfig.model_validate(perspective_config)
@@ -265,8 +270,8 @@ class QwenProvider:
             user_content = f"以下是文本片段（span_id 标注在每段开头）：\n\n{user_payload.get('spans_text', '')}\n\n请从指定视角分析，返回 JSON。可用的 span_ids: {json.dumps(user_payload.get('span_ids', []))}"
             return self._call(system, user_content)
         elif stage == 'dialectical_interpreter':
-            from .perspectives.prompts import build_perspective_prompts
             from .models import PerspectiveConfig
+            from .perspectives.prompts import build_perspective_prompts
             perspective_config = run_context.get('perspective_config')
             if perspective_config and isinstance(perspective_config, dict):
                 perspective_config = PerspectiveConfig.model_validate(perspective_config)
@@ -279,8 +284,8 @@ class QwenProvider:
             return self._call(system, user_content)
         elif stage == 'cross_critique':
             from .formal.prompts import FORMAL_CROSS_CRITIQUE_SYSTEM as FORMAL_CC
-            from .perspectives.prompts import build_perspective_prompts
             from .models import PerspectiveConfig
+            from .perspectives.prompts import build_perspective_prompts
             perspective_config = run_context.get('perspective_config')
             if perspective_config and isinstance(perspective_config, dict):
                 perspective_config = PerspectiveConfig.model_validate(perspective_config)

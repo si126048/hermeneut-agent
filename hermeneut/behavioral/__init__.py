@@ -1,18 +1,37 @@
 """Behavioral profiling module for agent distillation."""
 
-from .profiler import BehavioralProfiler
 from .models import (
-    ProfileArtifact, EvidenceClaim, ConsentPolicy, MaterialSource, EvidenceSpan,
-    StructuralClaim, CrossSourceFinding,
-    MessageRecord, ConversationWindow, TransformAnnotation,
-    InteractionEvent, RelationshipClaim, RelationGraph,
+    ConsentPolicy,
+    ConversationWindow,
+    CrossSourceFinding,
+    EvidenceClaim,
+    EvidenceSpan,
+    InteractionEvent,
+    MaterialSource,
+    MessageRecord,
+    ProfileArtifact,
+    RelationGraph,
+    RelationshipClaim,
+    StructuralClaim,
+    TransformAnnotation,
 )
+from .profiler import BehavioralProfiler
 from .subject import SubjectProfiler
 
 __all__ = [
-    "BehavioralProfiler", "SubjectProfiler", "ProfileArtifact", "EvidenceClaim",
-    "ConsentPolicy", "MaterialSource", "EvidenceSpan", "StructuralClaim",
+    "BehavioralProfiler",
+    "ConsentPolicy",
+    "ConversationWindow",
     "CrossSourceFinding",
-    "MessageRecord", "ConversationWindow", "TransformAnnotation",
-    "InteractionEvent", "RelationshipClaim", "RelationGraph",
+    "EvidenceClaim",
+    "EvidenceSpan",
+    "InteractionEvent",
+    "MaterialSource",
+    "MessageRecord",
+    "ProfileArtifact",
+    "RelationGraph",
+    "RelationshipClaim",
+    "StructuralClaim",
+    "SubjectProfiler",
+    "TransformAnnotation",
 ]

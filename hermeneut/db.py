@@ -1,8 +1,14 @@
 from __future__ import annotations
-import hashlib, json, logging, os, sqlite3, threading, uuid
-from datetime import datetime, timezone
+
+import hashlib
+import logging
+import os
+import sqlite3
+import threading
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+
 from .models import *
 
 logger = logging.getLogger(__name__)
@@ -48,7 +54,7 @@ class Store:
             self.conn.executescript(sql)
             self.conn.execute(
                 'INSERT INTO _migrations(version, description, applied_at) VALUES(?,?,?)',
-                (version, description, datetime.now(timezone.utc).isoformat()),
+                (version, description, datetime.now(UTC).isoformat()),
             )
             self.conn.commit()
             applied.append(version)
@@ -122,11 +128,11 @@ class Store:
     def get_run_by_idem(self,project_id,idem):
         r=self.conn.execute('SELECT data FROM runs WHERE project_id=? AND idem=?',(project_id,idem)).fetchone(); return AnalysisRun.model_validate_json(r['data']) if r else None
     def audit(self,run,actor,reason):
-        run.audit.append({'actor':actor,'timestamp':datetime.now(timezone.utc).isoformat(),'state':run.state,'reason':reason}); return self.put_run(run)
+        run.audit.append({'actor':actor,'timestamp':datetime.now(UTC).isoformat(),'state':run.state,'reason':reason}); return self.put_run(run)
     def withdraw(self,project_id,pid):
         p=self.get_participant(project_id,pid)
         if not p:return None
-        p.withdrawn_at=datetime.now(timezone.utc).isoformat(); p.consent_scope.withdrawn_at=p.withdrawn_at
+        p.withdrawn_at=datetime.now(UTC).isoformat(); p.consent_scope.withdrawn_at=p.withdrawn_at
         with self.conn:
             self.conn.execute('DELETE FROM spans WHERE document_id IN (SELECT id FROM documents WHERE project_id=? AND participant_id=?)', (project_id, pid))
             self.conn.execute('DELETE FROM document_fts WHERE document_id IN (SELECT id FROM documents WHERE project_id=? AND participant_id=?)', (project_id, pid))

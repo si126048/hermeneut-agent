@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .chat_parser import load_normalized_messages, read_text
-from .models import EvidenceSpan, MaterialSource, SOURCE_TYPES
+from .models import SOURCE_TYPES, EvidenceSpan, MaterialSource
 
 
 def _digest(text: str) -> str:
@@ -16,7 +16,7 @@ def _digest(text: str) -> str:
 
 
 def _stable_id(prefix: str, source_id: str, index: int, text: str) -> str:
-    raw = f'{source_id}:{index}:{text}'.encode('utf-8')
+    raw = f'{source_id}:{index}:{text}'.encode()
     return f'{prefix}_{hashlib.sha256(raw).hexdigest()[:16]}'
 
 

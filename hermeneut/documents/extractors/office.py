@@ -3,6 +3,7 @@
 # See NOTICE and LICENSE-MISAKA in the project root.
 
 from __future__ import annotations
+
 from pathlib import Path
 
 

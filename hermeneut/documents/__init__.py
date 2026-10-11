@@ -2,11 +2,14 @@
 # Copyright 2026 Luciole Studio. Licensed under Apache License 2.0.
 # See NOTICE and LICENSE-MISAKA in the project root.
 
-from .store import DocumentStore
 from .outline import build_text_tree
-from .quote_verify import normalize_for_quote_match, verify_quote, locate_quote
+from .quote_verify import locate_quote, normalize_for_quote_match, verify_quote
+from .store import DocumentStore
 
 __all__ = [
-    'DocumentStore', 'build_text_tree',
-    'normalize_for_quote_match', 'verify_quote', 'locate_quote',
+    'DocumentStore',
+    'build_text_tree',
+    'locate_quote',
+    'normalize_for_quote_match',
+    'verify_quote',
 ]

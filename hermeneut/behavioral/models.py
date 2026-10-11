@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator
+from datetime import UTC, datetime
 
+from pydantic import BaseModel, Field, field_validator
 
 SOURCE_TYPES = {'chat', 'interview', 'writing', 'observation'}
 STRUCTURAL_DIMENSIONS = {
@@ -97,8 +97,8 @@ class ConsentPolicy(BaseModel):
         try:
             value = datetime.fromisoformat(self.expires_at.replace('Z', '+00:00'))
             if value.tzinfo is None:
-                value = value.replace(tzinfo=timezone.utc)
-            return value > datetime.now(timezone.utc)
+                value = value.replace(tzinfo=UTC)
+            return value > datetime.now(UTC)
         except ValueError:
             return False
 

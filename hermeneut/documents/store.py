@@ -8,10 +8,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from .extractors import extract_pages, SUPPORTED_SUFFIXES
+from .extractors import SUPPORTED_SUFFIXES, extract_pages
 from .outline import build_text_tree
 
 
@@ -62,7 +62,7 @@ class DocumentStore:
         is_markdown = path.suffix.lower() in ('.md', '.markdown')
         outline = build_text_tree(pages, markdown=is_markdown)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.conn.execute(
             'INSERT INTO doc_store(doc_id, sha256, title, origin_path, format, page_count, outline_json, meta_json, created_at) '
             'VALUES(?,?,?,?,?,?,?,?,?)',

@@ -3,8 +3,10 @@
 # See NOTICE and LICENSE-MISAKA in the project root.
 
 from __future__ import annotations
+
 import zipfile
 from pathlib import Path
+
 from .html import _TextExtractor
 
 

@@ -14,12 +14,12 @@ import threading
 import uuid
 from enum import Enum
 
-from ..db import Store, new_id
-from ..models import Project, Participant, ConsentScope
+from ..db import Store
+from ..dialectical import DialecticalWorkflow
+from ..models import ConsentScope, Participant, Project
+from ..perspectives import list_perspectives
 from ..rag import ingest, search
 from ..workflow import Workflow
-from ..dialectical import DialecticalWorkflow
-from ..perspectives import list_perspectives
 
 logger = logging.getLogger(__name__)
 
@@ -172,8 +172,8 @@ def _format_analysis_packet(packet) -> str:
         lines.append(f"### 观察（{len(packet.observations)}）\n")
         for o in packet.observations:
             lines.append(f"- **{o.id}**: {o.label}")
-            markers = f" | Register: {o.register}" if o.register else ""
-            lines.append(f"  - 寄存器: {o.register}{markers}\n")
+            markers = f" | Register: {o.rsi_register}" if o.rsi_register else ""
+            lines.append(f"  - 寄存器: {o.rsi_register}{markers}\n")
     if packet.hypotheses:
         lines.append(f"\n### 假设（{len(packet.hypotheses)}）\n")
         for h in packet.hypotheses:

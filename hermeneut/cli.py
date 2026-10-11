@@ -256,8 +256,8 @@ def execute(args: argparse.Namespace) -> Any:
             raise CliError(f"participant not found: {args.participant}")
         return {"participant_id": args.participant, "state": "WITHDRAWAL_REQUESTED"}
     if cmd == "dialectical-analyze":
-        from .perspectives import PerspectiveRegistry
         from .dialectical import DialecticalWorkflow
+        from .perspectives import PerspectiveRegistry
         participant = store.get_participant(args.project, args.participant)
         if participant is None:
             raise CliError(f"participant not found: {args.participant}")
@@ -336,7 +336,7 @@ def execute(args: argparse.Namespace) -> Any:
             return {'deleted': profiler.delete_artifact(args.participant, args.cards_dir)}
         raise CliError(f'unknown profile command: {profile_cmd}', EXIT_USAGE)
     if cmd == "subject":
-        from .behavioral import SubjectProfiler, ConsentPolicy
+        from .behavioral import SubjectProfiler
         subject_cmd = args.subject_command
         cards_dir = Path(args.cards_dir)
         artifact_path = cards_dir / f'{args.participant}.json'
