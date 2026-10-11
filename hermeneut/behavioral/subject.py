@@ -85,6 +85,8 @@ class SubjectProfiler:
                     )
                 except Exception as exc:
                     relation_warnings.append(f'relation_inference_failed:{type(exc).__name__}')
+        else:
+            warnings.append('DASHSCOPE_API_KEY not set, structural extraction skipped')
         warnings.extend(relation_warnings)
         graph = build_relation_graph(events, relation_claims)
         findings = self._cross_source_findings(claims)

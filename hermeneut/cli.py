@@ -384,6 +384,9 @@ def execute(args: argparse.Namespace) -> Any:
         if subject_cmd == 'show-batch-failures':
             return {'batches': [x for x in artifact.analysis_batches if x.get('status') == 'failed']}
         if subject_cmd == 'review':
+            if not artifact.structural_claims:
+                return {'status': 'ok', 'review_state': artifact.review_state,
+                        'warning': 'no structural claims to review; run subject build with DASHSCOPE_API_KEY set'}
             try:
                 review = json.loads(Path(args.input).read_text(encoding='utf-8'))
             except (OSError, json.JSONDecodeError) as exc:

@@ -399,12 +399,27 @@ ruff check hermeneut/     # 代码检查
 }
 ```
 
+### 访谈 JSON 格式
+
+`source_type: "interview"` 对应的文件为 JSON 格式，结构如下：
+
+```json
+{
+  "turns": [
+    { "question": "你第一次感到焦虑是什么时候？", "answer_text": "大概初中的时候…" },
+    { "question": "当时发生了什么？", "answer_text": "有一次考试…" }
+  ]
+}
+```
+
+每个 turn 必须包含 `question`（问题文本）和回答字段。回答字段按优先级尝试 `answer_text` → `answer` → `text`，三者取其一即可。字段缺失或为空时该 turn 会被跳过（除非提供了 `answer_span_ids` 指向已有证据 span）。
+
 ```bash
 hermeneut subject build --participant A --sources sources.json --mode full \
   --batch-size 80 --with-relations --cards-dir data/subject-artifacts
 hermeneut subject show --participant A --cards-dir data/subject-artifacts
 hermeneut subject review --participant A --input review.json --cards-dir data/subject-artifacts
-hermeneut subject export --participant A --cards-dir data/subject-artifacts --output subject.json
+hermeneut subject export --participant A --cards-dir data/subject-artifacts --to subject.json
 ```
 
 主体分析按重叠窗口覆盖全部消息。关系层先生成有向互动事件，再由 Qwen 复核关系候选。所有候选保留 span、时间和场景证据。可用 `--aliases aliases.json` 提供人工确认的参与者别名表。
