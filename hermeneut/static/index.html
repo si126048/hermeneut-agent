@@ -713,6 +713,15 @@ textarea::placeholder { color: rgba(37,39,34,0.3); }
     <svg viewBox="0 0 16 16" fill="none" style="width:12px;height:12px"><rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="0.8" fill="none"/><rect x="5" y="2" width="6" height="5" stroke="currentColor" stroke-width="0.5" fill="none"/><rect x="10" y="9" width="3" height="2" fill="var(--gold)" opacity="0.5"/></svg>
     LOCAL
   </div>
+  <span class="footer-sep">│</span>
+  <div class="footer-item" style="cursor:pointer" onclick="var i=document.getElementById('api-key-input');i.style.display=i.style.display==='none'?'inline-block':'none';i.focus()">
+    <span class="footer-dot" id="auth-dot" style="background:rgba(200,201,184,0.3)"></span>
+    KEY
+    <input id="api-key-input" type="password" placeholder="paste key..." style="
+      display:none; width:100px; background:transparent; border:none; border-bottom:1px solid var(--gold);
+      color:var(--panel-text); font:inherit; font-size:10px; padding:0 4px; outline:none; margin-left:4px;
+    " onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){setApiKey(this.value);this.style.display='none';updateAuthDot()}">
+  </div>
 </footer>
 
 <script>
@@ -725,6 +734,22 @@ let participantId = 'web-user';
 let runCounter = 0;
 let initialized = false;
 let selectedFile = null;
+
+function getApiKey() { return localStorage.getItem('lacan_api_key') || ''; }
+function setApiKey(key) { localStorage.setItem('lacan_api_key', key); }
+function authHeaders() {
+  const k = getApiKey();
+  return k ? {'Authorization': 'Bearer ' + k} : {};
+}
+function apiFetch(url, options = {}) {
+  options.headers = Object.assign({}, options.headers || {}, authHeaders());
+  return fetch(url, options);
+}
+function updateAuthDot() {
+  const dot = document.getElementById('auth-dot');
+  if (!dot) return;
+  dot.style.background = getApiKey() ? '#48b8a0' : 'rgba(200,201,184,0.3)';
+}
 
 const filePickBtn = document.getElementById('file-pick-btn');
 const analysisFileInput = document.getElementById('analysis-file-input');
@@ -762,7 +787,7 @@ function getAnalysisFileName() {
 // ── INIT ──
 async function init() {
   try {
-    const r = await fetch(`${API}/health`);
+    const r = await apiFetch(`${API}/health`);
     if (r.ok) {
       document.getElementById('sys-dot').className = 'footer-dot ok';
       document.getElementById('sys-status').textContent = 'OK';
@@ -772,12 +797,12 @@ async function init() {
     document.getElementById('sys-status').textContent = 'ERR';
   }
   try {
-    await fetch(`${API}/api/v1/projects`, {
+    await apiFetch(`${API}/api/v1/projects`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({id: projectId})
     });
-    await fetch(`${API}/api/v1/participants`, {
+    await apiFetch(`${API}/api/v1/participants`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({id: participantId, project_id: projectId})
@@ -785,6 +810,7 @@ async function init() {
     initialized = true;
   } catch {}
   loadPerspectives();
+  updateAuthDot();
 }
 
 // ── TAB SWITCHING ──
@@ -797,7 +823,7 @@ function switchTab(name) {
 async function loadPerspectives() {
   const panel = document.getElementById('panel-perspectives');
   try {
-    const r = await fetch(`${API}/api/v1/perspectives`);
+    const r = await apiFetch(`${API}/api/v1/perspectives`);
     const data = await r.json();
     const perspectives = data.perspectives || [];
     panel.innerHTML = '';
@@ -834,11 +860,11 @@ async function runAnalyze() {
     const form = new FormData();
     form.append('project_id', projectId);
     form.append('file', file, getAnalysisFileName());
-    const uploadRes = await fetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
+    const uploadRes = await apiFetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
     if (!uploadRes.ok) { removeLoading(); addCard('error', 'ERR', '上传失败: ' + uploadRes.status, ''); setBusy(false); return; }
     const uploadData = await uploadRes.json();
     const sid = uploadData.id;
-    const rr = await fetch(`${API}/api/v1/analysis-runs`, {
+    const rr = await apiFetch(`${API}/api/v1/analysis-runs`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({project_id: projectId, participant_id: participantId, source_ids: [sid], idempotency_key: iid})
@@ -849,10 +875,10 @@ async function runAnalyze() {
     let tries = 0;
     while (tries++ < 60) {
       await sleep(1500);
-      const sr = await fetch(`${API}/api/v1/analysis-runs/${rid}`);
+      const sr = await apiFetch(`${API}/api/v1/analysis-runs/${rid}`);
       const rd = await sr.json();
       if (rd.state === 'APPROVED' || rd.state === 'COMPILED') {
-        const pr = await fetch(`${API}/api/v1/analysis-runs/${rid}/packet`);
+        const pr = await apiFetch(`${API}/api/v1/analysis-runs/${rid}/packet`);
         const packet = await pr.json();
         removeLoading();
         renderPacket(packet);
@@ -861,7 +887,7 @@ async function runAnalyze() {
       if (rd.state === 'FAILED' || rd.state === 'NEEDS_HUMAN_REVIEW') {
         removeLoading();
         if (rd.state === 'NEEDS_HUMAN_REVIEW') {
-          const pr2 = await fetch(`${API}/api/v1/analysis-runs/${rid}/packet`);
+          const pr2 = await apiFetch(`${API}/api/v1/analysis-runs/${rid}/packet`);
           const pkt = await pr2.json();
           renderPacket(pkt);
         } else {
@@ -892,11 +918,11 @@ async function runDialectical() {
     const form = new FormData();
     form.append('project_id', projectId);
     form.append('file', file, getAnalysisFileName());
-    const uploadRes = await fetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
+    const uploadRes = await apiFetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
     if (!uploadRes.ok) { removePhaseBar(); addCard('error', 'ERR', '上传失败: ' + uploadRes.status, ''); setBusy(false); return; }
     const uploadData = await uploadRes.json();
     const sid = uploadData.id;
-    const rr = await fetch(`${API}/api/v1/dialectical/run`, {
+    const rr = await apiFetch(`${API}/api/v1/dialectical/run`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -998,7 +1024,7 @@ async function runSearch() {
   const results = document.getElementById('search-results');
   results.innerHTML = '<div class="no-data">SEARCHING...</div>';
   try {
-    const r = await fetch(`${API}/api/v1/theory/search?project_id=${projectId}&q=${encodeURIComponent(q)}&limit=5`);
+    const r = await apiFetch(`${API}/api/v1/theory/search?project_id=${projectId}&q=${encodeURIComponent(q)}&limit=5`);
     const data = await r.json();
     const items = data.items || [];
     if (!items.length) {
@@ -1037,7 +1063,7 @@ async function uploadFile(file) {
   form.append('project_id', projectId);
   form.append('file', file);
   try {
-    const r = await fetch(`${API}/api/v1/theory/sources`, {method: 'POST', body: form});
+    const r = await apiFetch(`${API}/api/v1/theory/sources`, {method: 'POST', body: form});
     if (r.ok) {
       const data = await r.json();
       addDocItem(data.id || file.name, file.type || 'unknown');

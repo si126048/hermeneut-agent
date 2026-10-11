@@ -29,6 +29,7 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 | **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
+| **Web UI** | 浏览器图形界面：聊天式分析、文件上传（txt/md/pdf）、视角面板、语料检索 |
 
 ---
 
@@ -247,6 +248,22 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
     "generate_report": true
   }'
 ```
+
+## Web UI
+
+浏览器访问 `http://127.0.0.1:8000` 即可使用图形界面（启动方式同上 `uvicorn hermeneut.api:app`）。
+
+### 功能
+
+- **聊天式分析**：输入文本或上传文件（`.txt / .md / .pdf`），查看 Observation / Hypothesis 卡片
+- **辩证分析**：一键运行四阶段对抗性辩证管线（Lacan × Deleuze）
+- **视角面板**：查看已注册视角的概念清单与盲点
+- **文档上传**：拖拽上传到 PageIndex 文档系统
+- **语料检索**：搜索已索引的理论文档
+
+### API Key
+
+如果服务端设置了 `LACAN_API_KEY`，点击底栏 `KEY` 输入 API Key（存储在浏览器 localStorage）。未设置时无需配置。
 
 ---
 
