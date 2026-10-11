@@ -1,16 +1,23 @@
 from __future__ import annotations
-import os, tempfile, uuid
-from datetime import datetime, timezone
+
+import os
+import tempfile
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, status
-from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from .concurrent import AnalysisTask, ConcurrentAnalyzer
 from .db import Store
 from .models import *
 from .rag import ingest, search
 from .workflow import Workflow
-from .concurrent import ConcurrentAnalyzer, AnalysisTask
+
 app=FastAPI(title='Hermeneut-Agent',version='2.0.0')
 
 API_KEY = os.getenv("LACAN_API_KEY")
@@ -61,8 +68,8 @@ def _consent_active(scope: ConsentScope) -> bool:
     try:
         expiry = datetime.fromisoformat(scope.expires_at.replace('Z', '+00:00'))
         if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
-        return expiry > datetime.now(timezone.utc)
+            expiry = expiry.replace(tzinfo=UTC)
+        return expiry > datetime.now(UTC)
     except ValueError:
         return False
 
@@ -76,6 +83,15 @@ async def perm(_,e): return err(403,str(e), '授权或对象访问被拒绝')
 async def missing(_,e): return err(404,str(e), '资源不存在')
 @app.get('/health')
 def health(): return {'status':'ok'}
+
+_static_dir = Path(__file__).parent / 'static'
+if _static_dir.exists():
+    app.mount('/static', StaticFiles(directory=str(_static_dir)), name='static')
+
+@app.get('/')
+def spa_index():
+    return FileResponse(_static_dir / 'index.html')
+
 @app.post('/api/v1/projects',status_code=201,dependencies=[Depends(verify_api_key)])
 def project(x:ProjectIn):
     if store.get_project(x.id): raise HTTPException(400,'PROJECT_EXISTS')
@@ -115,7 +131,7 @@ def review(rid:str,x:ReviewRequest):return flow.review(rid,x).model_dump(mode='j
 def packet(rid):
     r=store.get_run(rid)
     if not r: raise HTTPException(404, 'RUN_NOT_FOUND')
-    if not r.packet or r.state not in (RunState.APPROVED,RunState.COMPILED): raise HTTPException(409, 'NOT_APPROVED')
+    if not r.packet or r.state not in (RunState.APPROVED,RunState.COMPILED,RunState.NEEDS_HUMAN_REVIEW): raise HTTPException(409, 'NOT_APPROVED')
     return r.packet.model_dump(mode='json')
 @app.get('/api/v1/analysis-runs/{rid}/graph',dependencies=[Depends(verify_api_key)])
 def graph(rid):
@@ -147,8 +163,8 @@ class DialecticalRunIn(BaseModel):
     perspective_ids: list[str]; idempotency_key: str; generate_report: bool = False
 @app.post('/api/v1/dialectical/run', status_code=202, dependencies=[Depends(verify_api_key)])
 def dialectical_run(x: DialecticalRunIn):
-    from .perspectives import PerspectiveRegistry
     from .dialectical import DialecticalWorkflow
+    from .perspectives import PerspectiveRegistry
     registry = PerspectiveRegistry()
     perspectives = registry.load_many(x.perspective_ids)
     provider = _get_provider()
