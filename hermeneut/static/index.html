@@ -227,6 +227,49 @@ body {
   flex-shrink: 0;
   background: var(--paper);
 }
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.file-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.file-btn:hover { border-color: var(--gold); color: var(--gold); }
+.file-btn svg { width: 14px; height: 14px; }
+.file-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--olive);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+.file-name.has-file { color: var(--gold); }
+.file-clear {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 6px;
+  display: none;
+}
+.file-clear.visible { display: inline; }
 .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
 textarea {
   width: 100%;
@@ -585,7 +628,16 @@ textarea::placeholder { color: rgba(37,39,34,0.3); }
       </div>
     </div>
     <div class="input-area">
-      <textarea id="input-text" placeholder="在此输入待分析文本...&#10;支持中文、英文、法文等多语言文本"></textarea>
+      <div class="file-row">
+        <button class="file-btn" id="file-pick-btn">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="12" height="14" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="4" y="1" width="8" height="4" stroke="currentColor" stroke-width="0.8" fill="none"/><rect x="5.5" y="2" width="5" height="2" fill="currentColor" opacity="0.2"/><rect x="8" y="8" width="4" height="2" fill="currentColor" opacity="0.4"/></svg>
+          附加文件
+        </button>
+        <span class="file-name" id="file-name-display">未选择文件</span>
+        <button class="file-clear" id="file-clear-btn">✕ 移除</button>
+        <input type="file" id="analysis-file-input" accept=".txt,.md,.pdf" style="display:none">
+      </div>
+      <textarea id="input-text" placeholder="在此输入待分析文本...&#10;支持中文、英文、法文等多语言文本&#10;或通过上方按钮附加 .txt / .md / .pdf 文件"></textarea>
       <div class="btn-row">
         <button class="btn primary" id="btn-analyze" onclick="runAnalyze()">▸ 分析</button>
         <button class="btn" id="btn-dialectical" onclick="runDialectical()">▸▸ 辩证分析</button>
@@ -672,6 +724,40 @@ let projectId = 'web-session';
 let participantId = 'web-user';
 let runCounter = 0;
 let initialized = false;
+let selectedFile = null;
+
+const filePickBtn = document.getElementById('file-pick-btn');
+const analysisFileInput = document.getElementById('analysis-file-input');
+const fileNameDisplay = document.getElementById('file-name-display');
+const fileClearBtn = document.getElementById('file-clear-btn');
+
+filePickBtn.addEventListener('click', () => analysisFileInput.click());
+analysisFileInput.addEventListener('change', () => {
+  if (analysisFileInput.files.length) {
+    selectedFile = analysisFileInput.files[0];
+    fileNameDisplay.textContent = selectedFile.name;
+    fileNameDisplay.classList.add('has-file');
+    fileClearBtn.classList.add('visible');
+  }
+});
+fileClearBtn.addEventListener('click', () => {
+  selectedFile = null;
+  analysisFileInput.value = '';
+  fileNameDisplay.textContent = '未选择文件';
+  fileNameDisplay.classList.remove('has-file');
+  fileClearBtn.classList.remove('visible');
+});
+
+function getAnalysisFile() {
+  if (selectedFile) return selectedFile;
+  const text = inputText.value.trim();
+  if (!text) return null;
+  return new Blob([text], {type: 'text/plain'});
+}
+function getAnalysisFileName() {
+  if (selectedFile) return selectedFile.name;
+  return 'input.txt';
+}
 
 // ── INIT ──
 async function init() {
@@ -735,18 +821,19 @@ async function loadPerspectives() {
 
 // ── ANALYZE ──
 async function runAnalyze() {
-  const text = inputText.value.trim();
-  if (!text) return;
+  const file = getAnalysisFile();
+  if (!file) return;
+  const displayName = selectedFile ? `[${selectedFile.name}]` : '';
+  const text = selectedFile ? selectedFile.name : inputText.value.trim();
   clearEmpty();
   setBusy(true);
-  addUserMsg(text);
+  addUserMsg(displayName ? displayName : text);
   showLoading('ANALYZING...');
   try {
     const iid = 'run-' + (++runCounter);
     const form = new FormData();
     form.append('project_id', projectId);
-    const blob = new Blob([text], {type: 'text/plain'});
-    form.append('file', blob, 'input.txt');
+    form.append('file', file, getAnalysisFileName());
     const uploadRes = await fetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
     if (!uploadRes.ok) { removeLoading(); addCard('error', 'ERR', '上传失败: ' + uploadRes.status, ''); setBusy(false); return; }
     const uploadData = await uploadRes.json();
@@ -792,18 +879,19 @@ async function runAnalyze() {
 
 // ── DIALECTICAL ──
 async function runDialectical() {
-  const text = inputText.value.trim();
-  if (!text) return;
+  const file = getAnalysisFile();
+  if (!file) return;
+  const displayName = selectedFile ? `[${selectedFile.name}]` : '';
+  const text = selectedFile ? selectedFile.name : inputText.value.trim();
   clearEmpty();
   setBusy(true);
-  addUserMsg(text);
+  addUserMsg(displayName ? `▸▸ ${displayName}` : text);
   showPhaseBar();
   try {
     const iid = 'dial-' + (++runCounter);
     const form = new FormData();
     form.append('project_id', projectId);
-    const blob = new Blob([text], {type: 'text/plain'});
-    form.append('file', blob, 'input.txt');
+    form.append('file', file, getAnalysisFileName());
     const uploadRes = await fetch(`${API}/api/v1/participants/${participantId}/sources`, {method: 'POST', body: form});
     if (!uploadRes.ok) { removePhaseBar(); addCard('error', 'ERR', '上传失败: ' + uploadRes.status, ''); setBusy(false); return; }
     const uploadData = await uploadRes.json();
