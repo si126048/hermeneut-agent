@@ -29,7 +29,7 @@ export function StatusFooter() {
           />
           SYS
         </span>
-        <span>v2.2.0</span>
+        <span>v3.1.0</span>
         <span>LOCAL</span>
       </div>
       <div className="flex items-center gap-3">
