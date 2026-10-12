@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 
 
 class RunState(StrEnum):
@@ -180,6 +180,13 @@ class NarrativeOperator(BaseModel):
     id: str; operator: str; source_finding_ids: list[str]; allowed: bool = False; use_cases: list[str] = []; counterexamples: list[Counterexample] = Field(default_factory=list); approval_state: str = 'provisional'
 class PointDeCapiton(BaseModel):
     id: str; signifier: str; fixation_span_ids: list[str] = []; duration: int = 0; centrality: float = 0.0
+
+    @field_validator('duration', mode='before')
+    @classmethod
+    def _coerce_duration(cls, v):
+        if isinstance(v, float):
+            return int(v)
+        return v
 class DesireResidual(BaseModel):
     demand_surface: str; need_object: str | None = None; residual_score: float = 0.0
 

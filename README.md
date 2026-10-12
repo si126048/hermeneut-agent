@@ -2,7 +2,7 @@
 
 **对抗性多视角话语分析工具** — 形式化记号驱动的多理论视角辩证分析，产出可追溯的证据化主体结构画像。
 
-> v2.2 · Python 3.12+ · 284 tests · MIT
+> v3.0 · Python 3.12+ · 284 tests · MIT
 
 ---
 
@@ -29,7 +29,9 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 | **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
-| **Web UI** | 浏览器图形界面：聊天式分析、文件上传（txt/md/pdf）、视角面板、语料检索 |
+| **Web UI** | Vite + React + TypeScript 对话式界面：聊天分析、辩证分析、访谈、文件上传（txt/md/pdf） |
+| **对话模式** | 专门化话语分析 Agent，支持拉康/德勒兹理论框架的连贯对话 |
+| **SSE 流式输出** | 实时流式显示分析阶段、观察、假设、反例和报告 |
 
 ---
 
@@ -264,17 +266,47 @@ curl -X POST http://localhost:8000/api/v1/dialectical/run \
 
 Windows 下也可以在项目根目录执行 `.\start-webui.ps1` 启动服务。
 
-开发时也可以直接打开 `hermeneut/static/index.html`；此时页面会把 API 请求转发到
-`http://127.0.0.1:8000`，仍需先启动同一个 Uvicorn 服务。
+### 技术栈
+
+- **前端**: Vite 8 + React 19 + TypeScript + Tailwind CSS 4 + Zustand
+- **后端**: FastAPI + SSE (Server-Sent Events)
+- **流式输出**: 原生 fetch + ReadableStream
+
+### 开发模式
+
+```bash
+# Terminal 1: 后端
+uvicorn hermeneut.api:app --reload --port 8000
+
+# Terminal 2: 前端
+cd web && npm run dev  # → http://localhost:5173
+```
+
+### 生产构建
+
+```bash
+cd web && npm run build
+uvicorn hermeneut.api:app --port 8000  # 访问 http://127.0.0.1:8000
+```
 
 ### 功能
 
-- **聊天式分析**：输入文本或上传文件（`.txt / .md / .pdf`），查看 Observation / Hypothesis 卡片
-- **辩证分析**：一键运行四阶段对抗性辩证管线（Lacan × Deleuze）
+- **对话模式**：与专门化话语分析 Agent 进行连贯对话，支持拉康/德勒兹理论框架
+- **分析模式**：输入文本或上传文件（`.txt / .md / .pdf`），流式显示 Observation / Hypothesis / Counterexample 卡片
+- **辩证分析**：一键运行四阶段对抗性辩证管线（Lacan × Deleuze），实时显示进度
 - **视角面板**：查看已注册视角的概念清单与盲点
 - **文档上传**：拖拽上传到 PageIndex 文档系统
 - **语料检索**：搜索已索引的理论文档
 - **交互式访谈**：固定主问题结合受限动态追问，支持暂停、恢复、完成和撤回
+
+### 模式切换
+
+| 模式 | 说明 |
+|------|------|
+| 对话 | 与话语分析 Agent 进行连贯对话，适合探索性讨论 |
+| 分析 | 单视角证据分析，流式输出观察/假设/反例 |
+| 辩证 | 多视角对抗性分析，四阶段管线（独立分析→交叉批判→综合→报告） |
+| 访谈 | 结构化访谈，支持暂停/恢复/完成/撤回 |
 
 ### API Key
 
@@ -378,7 +410,10 @@ ruff check hermeneut/     # 代码检查
 | 数据验证 | Pydantic v2 |
 | 数据库 | SQLite + FTS5 |
 | Web 框架 | FastAPI + Uvicorn |
+| 前端框架 | Vite 8 + React 19 + TypeScript + Tailwind CSS 4 |
+| 状态管理 | Zustand |
 | LLM | DashScope (通义千问) OpenAI-compatible API |
+| 流式输出 | SSE (Server-Sent Events) |
 | 形式化记号 | `hermeneut/formal/` — mathemes + discourse algebra + register taxonomy |
 | 文档提取 | pypdf / HTMLParser / zipfile |
 | 测试 | pytest + pytest-asyncio |

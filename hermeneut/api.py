@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ app.add_middleware(
     CORSMiddleware,
     # The last origin supports the development workflow of opening index.html
     # directly from disk.  The normal served UI remains same-origin.
-    allow_origins=['http://127.0.0.1:8000', 'http://localhost:8000', 'null'],
+    allow_origins=['http://127.0.0.1:8000', 'http://localhost:8000', 'http://localhost:5173', 'null'],
     allow_credentials=False,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -127,13 +127,22 @@ async def missing(_,e): return err(404,str(e), '资源不存在')
 @app.get('/health')
 def health(): return {'status':'ok'}
 
-_static_dir = Path(__file__).parent / 'static'
+_static_dir = Path(__file__).parent.parent / 'web' / 'dist'
+_legacy_static = Path(__file__).parent / 'static'
+if not _static_dir.exists():
+    _static_dir = _legacy_static
 if _static_dir.exists():
     app.mount('/static', StaticFiles(directory=str(_static_dir)), name='static')
+    _assets_dir = _static_dir / 'assets'
+    if _assets_dir.exists():
+        app.mount('/assets', StaticFiles(directory=str(_assets_dir)), name='assets')
 
 @app.get('/')
 def spa_index():
-    return FileResponse(_static_dir / 'index.html')
+    idx = _static_dir / 'index.html'
+    if idx.exists():
+        return FileResponse(idx)
+    return JSONResponse({'service': 'Hermeneut-Agent', 'version': '2.2.0'})
 
 @app.post('/api/v1/projects',status_code=201,dependencies=[Depends(verify_api_key)])
 def project(x:ProjectIn):
@@ -316,3 +325,100 @@ def list_perspectives_api():
     from .perspectives import list_perspectives
     return {'perspectives': [{'id': p.id, 'name': p.name, 'concepts': p.concept_inventory,
                               'blind_spots': p.blind_spots} for p in list_perspectives()]}
+
+class ChatAnalyzeIn(BaseModel):
+    text: str = ''
+    source_ids: list[str] = []
+    project_id: str = 'default'
+    participant_id: str = 'anonymous'
+
+@app.post('/api/v1/chat/analyze', dependencies=[Depends(verify_api_key)])
+async def chat_analyze_stream(x: ChatAnalyzeIn):
+    from .stream import stream_single_analysis
+    if not x.project_id or not store.get_project(x.project_id):
+        store.create_project(Project(id=x.project_id, owner_id='chat-ui'))
+    if x.participant_id and not store.get_participant(x.project_id, x.participant_id):
+        store.put_participant(Participant(id=x.participant_id, project_id=x.project_id, pseudonym=x.participant_id, consent_scope=ConsentScope()))
+    provider = _get_provider()
+    return StreamingResponse(
+        stream_single_analysis(store, provider, x.project_id, x.participant_id, x.source_ids, x.text),
+        media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
+
+class ChatDialecticalIn(BaseModel):
+    text: str = ''
+    source_ids: list[str] = []
+    project_id: str = 'default'
+    participant_id: str = 'anonymous'
+
+@app.post('/api/v1/chat/dialectical', dependencies=[Depends(verify_api_key)])
+async def chat_dialectical_stream(x: ChatDialecticalIn):
+    from .stream import stream_dialectical_analysis
+    if not x.project_id or not store.get_project(x.project_id):
+        store.create_project(Project(id=x.project_id, owner_id='chat-ui'))
+    if x.participant_id and not store.get_participant(x.project_id, x.participant_id):
+        store.put_participant(Participant(id=x.participant_id, project_id=x.project_id, pseudonym=x.participant_id, consent_scope=ConsentScope()))
+    provider = _get_provider()
+    return StreamingResponse(
+        stream_dialectical_analysis(store, provider, x.project_id, x.participant_id, x.source_ids, x.text),
+        media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
+
+
+HERMENEUT_SYSTEM_PROMPT = """你是 Hermeneut Agent，一个专注于话语分析的专业助手。你的核心能力包括：
+
+**理论框架**
+- 拉康精神分析：能指链、想象界/象征界/实在界(RSI)、对象a、四种话语、镜像阶段、缝合点(points de capiton)
+- 德勒兹哲学：机器、装配体(assemblage)、根茎、解域/再域化、欲望机器、无器官身体、差异与重复
+
+**工作方式**
+1. 当用户分享文本或经历时，你能识别其中的话语模式、主体位置、欲望结构
+2. 你能用专业但不晦涩的语言解释分析结果
+3. 你会在适当时候使用形式化记号（如 $ ◇ a, S(Ⱥ)）来精确表达
+4. 你尊重来访者的独特性，不做病理化判断
+
+**对话风格**
+- 专业但温和，像一位经验丰富的分析家
+- 避免空洞的安慰，倾向于提出有启发性的问题
+- 当话题超出话语分析范畴时，坦诚说明并简要回应
+- 回复简洁有力，一般不超过3段"""
+
+
+class ChatCompletionIn(BaseModel):
+    messages: list[dict[str, str]]
+    model: str = 'default'
+
+
+@app.post('/api/v1/chat/completions', dependencies=[Depends(verify_api_key)])
+async def chat_completions_stream(x: ChatCompletionIn):
+    """Specialized hermeneutic conversation endpoint - streams natural language responses."""
+    provider = _get_provider()
+    if not provider or not hasattr(provider, 'client'):
+        async def error_gen():
+            yield f"event: error\ndata: {json.dumps({'message': 'LLM provider not configured'})}\n\n"
+        return StreamingResponse(error_gen(), media_type='text/event-stream')
+
+    messages = [{'role': 'system', 'content': HERMENEUT_SYSTEM_PROMPT}] + x.messages
+
+    async def stream_chat():
+        try:
+            resp = provider.client.chat.completions.create(
+                model=provider.model,
+                messages=messages,
+                temperature=provider.temperature,
+                stream=True,
+            )
+            for chunk in resp:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield f"event: text\ndata: {json.dumps({'chunk': chunk.choices[0].delta.content}, ensure_ascii=False)}\n\n"
+            yield f"event: done\ndata: {json.dumps({'status': 'complete'})}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        stream_chat(),
+        media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )

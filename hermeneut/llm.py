@@ -218,6 +218,22 @@ class QwenProvider:
             raise RuntimeError("LLM_INVALID_JSON: provider returned invalid JSON") from last_error
         raise RuntimeError("LLM_API_ERROR: provider request failed after retries") from last_error
 
+    def generate_stream(self, system: str, user_content: str):
+        """Yield text chunks from the LLM (non-JSON, streaming mode)."""
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=self.temperature,
+            stream=True,
+        )
+        for chunk in resp:
+            delta = chunk.choices[0].delta if chunk.choices else None
+            if delta and delta.content:
+                yield delta.content
+
     def generate_structured(self, system_prompt, user_payload, output_schema, run_context):
         payload_text = json.dumps(user_payload, ensure_ascii=False)
         creds = detect_credentials(payload_text)

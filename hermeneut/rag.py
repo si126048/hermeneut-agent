@@ -102,6 +102,45 @@ def ingest(store: Store, path: str, project_id: str, participant_id: str|None=No
     return d
 
 
+def ingest_text(store: Store, text: str, project_id: str, participant_id: str | None = None) -> list[str]:
+    """Ingest raw text directly (not from a file). Returns list of source_ids."""
+    text = text.strip()
+    if not text:
+        return []
+    cs = checksum(text)
+    existing = store.conn.execute(
+        "SELECT data FROM documents WHERE project_id=? AND json_extract(data,'$.checksum')=?",
+        (project_id, cs),
+    ).fetchone()
+    if existing:
+        return [SourceDocument.model_validate_json(existing['data']).id]
+    d = SourceDocument(
+        id=new_id('doc'), project_id=project_id, participant_id=participant_id,
+        origin='chat-input', type='txt', checksum=cs, text=text,
+        consent_scope=ConsentScope(),
+    )
+    store.put_document(d)
+    paragraphs = _split_chat_messages(text) if _is_chat_format(text) else _split_paragraphs(text)
+    spans = []
+    for start, end, excerpt in paragraphs:
+        if len(excerpt) <= MAX_SPAN_CHARS:
+            spans.append(EvidenceSpan(
+                id=new_id('span'), document_id=d.id, char_start=start, char_end=end,
+                excerpt=excerpt, excerpt_hash=checksum(excerpt),
+            ))
+        else:
+            for chunk_start in range(start, end, MAX_SPAN_CHARS - 200):
+                chunk_end = min(chunk_start + MAX_SPAN_CHARS, end)
+                chunk = text[chunk_start:chunk_end].strip()
+                if chunk:
+                    spans.append(EvidenceSpan(
+                        id=new_id('span'), document_id=d.id, char_start=chunk_start,
+                        char_end=chunk_end, excerpt=chunk, excerpt_hash=checksum(chunk),
+                    ))
+    store.put_spans(spans)
+    return [d.id]
+
+
 def search(store: Store, q: str, project_id: str | None = None, limit: int = 5) -> list[dict]:
     q = q.strip()
     if not q:

@@ -121,20 +121,24 @@ class Workflow:
     @staticmethod
     def _validate_observations(observations: list[Observation], span_ids: set[str]) -> None:
         for observation in observations:
-            if not set(observation.evidence_span_ids) <= span_ids:
-                raise ValueError(f'INVALID_EVIDENCE_REFERENCE:{observation.id}')
+            valid_spans = set(observation.evidence_span_ids) & span_ids
+            if valid_spans != set(observation.evidence_span_ids):
+                observation.evidence_span_ids = list(valid_spans)
 
     def _validate_hypotheses(self, hypotheses: list[Hypothesis], observations: list[Observation], project_id: str) -> None:
         observation_ids = {o.id for o in observations}
         theory_ids = {s.id for s in self.store.list_theory_spans(project_id)}
         valid_discourses = {'master', 'university', 'hysteric', 'analyst', None}
         for hypothesis in hypotheses:
-            if not set(hypothesis.support_ids) <= observation_ids:
-                raise ValueError(f'INVALID_SUPPORT_REFERENCE:{hypothesis.id}')
-            if not set(hypothesis.theory_reference_ids) <= theory_ids:
-                raise ValueError(f'INVALID_THEORY_REFERENCE:{hypothesis.id}')
+            valid_supports = set(hypothesis.support_ids) & observation_ids
+            if valid_supports != set(hypothesis.support_ids):
+                hypothesis.support_ids = list(valid_supports)
+                hypothesis.status = ReviewStatus.NEEDS_REVISION
+            valid_theory = set(hypothesis.theory_reference_ids) & theory_ids
+            if valid_theory != set(hypothesis.theory_reference_ids):
+                hypothesis.theory_reference_ids = list(valid_theory)
             if hypothesis.discourse_type not in valid_discourses:
-                raise ValueError(f'INVALID_DISCOURSE_TYPE:{hypothesis.id}')
+                hypothesis.discourse_type = None
             if not hypothesis.support_ids:
                 hypothesis.status = ReviewStatus.NEEDS_REVISION
 
