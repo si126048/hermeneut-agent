@@ -3,12 +3,14 @@ import { PerspectivePanel } from './PerspectivePanel';
 import { DocumentPanel } from './DocumentPanel';
 import { SearchPanel } from './SearchPanel';
 import { InterviewPanel } from './InterviewPanel';
+import { SettingsPanel } from '../settings/SettingsPanel';
 
 const tabs = [
   { key: 'perspectives' as const, label: '视角' },
   { key: 'documents' as const, label: '文档' },
   { key: 'search' as const, label: '检索' },
   { key: 'interview' as const, label: '访谈' },
+  { key: 'settings' as const, label: '设置' },
 ];
 
 export function Sidebar() {
@@ -47,6 +49,7 @@ export function Sidebar() {
         {sidebarTab === 'documents' && <DocumentPanel />}
         {sidebarTab === 'search' && <SearchPanel />}
         {sidebarTab === 'interview' && <InterviewPanel />}
+        {sidebarTab === 'settings' && <SettingsPanel />}
       </div>
     </aside>
   );

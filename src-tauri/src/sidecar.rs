@@ -1,0 +1,60 @@
+use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
+
+pub async fn start_sidecar(app: &AppHandle) {
+    let data_dir = Manager::path(app).app_data_dir().expect("failed to get app_data_dir");
+    let db_path = data_dir.join("lacan.db");
+    let storage_path = data_dir.join("storage");
+
+    std::fs::create_dir_all(&storage_path).ok();
+
+    let api_key_state = app.state::<crate::commands::ApiKeyState>();
+    let dashscope_key = api_key_state.dashscope.read().unwrap().clone().unwrap_or_default();
+
+    let sidecar = match app.shell().sidecar("hermeneut-backend") {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("[sidecar] not available (dev mode?): {}", e);
+            eprintln!("[sidecar] run backend manually: uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000");
+            return;
+        }
+    };
+
+    let sidecar = sidecar.envs(vec![
+        ("LACAN_DB_PATH".to_string(), db_path.to_string_lossy().into_owned()),
+        ("LACAN_STORAGE_PATH".to_string(), storage_path.to_string_lossy().into_owned()),
+        ("DASHSCOPE_API_KEY".to_string(), dashscope_key),
+        ("HERMENEUT_PORT".to_string(), "8000".to_string()),
+        ("LACAN_API_KEY".to_string(), String::new()),
+    ]);
+
+    let (mut rx, _child) = match sidecar.spawn() {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("[sidecar] failed to spawn: {}", e);
+            return;
+        }
+    };
+
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    println!("[backend] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Stderr(line) => {
+                    eprintln!("[backend] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Error(err) => {
+                    eprintln!("[backend] error: {}", err);
+                }
+                CommandEvent::Terminated(payload) => {
+                    eprintln!("[backend] terminated: {:?}", payload);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+}

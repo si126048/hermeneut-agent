@@ -21,12 +21,20 @@ from .models import *
 from .rag import ingest, search
 from .workflow import Workflow
 
-app=FastAPI(title='Hermeneut-Agent',version='2.2.0')
+app=FastAPI(title='Hermeneut-Agent',version='3.0.0')
 app.add_middleware(
     CORSMiddleware,
     # The last origin supports the development workflow of opening index.html
-    # directly from disk.  The normal served UI remains same-origin.
-    allow_origins=['http://127.0.0.1:8000', 'http://localhost:8000', 'http://localhost:5173', 'null'],
+    # directly from disk. Tauri origins are for the desktop WebView.
+    allow_origins=[
+        'http://127.0.0.1:8000',
+        'http://localhost:8000',
+        'http://localhost:5173',
+        'tauri://localhost',
+        'https://tauri.localhost',
+        'http://tauri.localhost',
+        'null',
+    ],
     allow_credentials=False,
     allow_methods=['*'],
     allow_headers=['*'],

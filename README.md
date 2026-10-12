@@ -314,6 +314,59 @@ uvicorn hermeneut.api:app --port 8000  # 访问 http://127.0.0.1:8000
 
 ---
 
+## 桌面应用
+
+Hermeneut 提供基于 Tauri v2 的桌面应用，打包为独立 Windows 安装程序，无需手动安装 Python 或 Node.js。
+
+### 架构
+
+```
+Tauri Application
+├── WebView (React SPA)        ← 前端界面
+├── Rust Main Binary           ← Sidecar 进程管理、API Key 存储
+└── Sidecar (PyInstaller exe)  ← Python FastAPI 后端，自动启动
+```
+
+数据存储在 `%APPDATA%\app.hermeneut.desktop\`（数据库 + 上传文件）。
+
+### 开发模式
+
+```powershell
+# 终端 1: 后端（开发时手动启动）
+uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
+
+# 终端 2: Tauri 开发
+$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+cargo tauri dev
+```
+
+### 构建安装程序
+
+**前置条件**：
+- Rust stable + VS Build Tools 2022
+- `cargo install tauri-cli --version "^2"`
+- `pip install pyinstaller`
+
+```powershell
+# 一键构建
+.\scripts\build-desktop.ps1
+
+# 或分步构建
+.\scripts\build-sidecar.ps1       # PyInstaller → src-tauri/bin/
+cd web && npm ci && npm run build:tauri
+cargo tauri build                  # → src-tauri/target/release/bundle/nsis/
+```
+
+输出：`Hermeneut-Agent_3.0.0_x64-setup.exe`（NSIS 安装程序）
+
+### 清理构建产物
+
+```powershell
+.\scripts\clean.ps1
+```
+
+---
+
 ## ACP（Agent Client Protocol）
 
 Hermeneut 支持通过 ACP 协议在 Zed 等编辑器中直接调用，选中文字即可分析。
@@ -412,6 +465,7 @@ ruff check hermeneut/     # 代码检查
 | Web 框架 | FastAPI + Uvicorn |
 | 前端框架 | Vite 8 + React 19 + TypeScript + Tailwind CSS 4 |
 | 状态管理 | Zustand |
+| 桌面应用 | Tauri v2 + PyInstaller sidecar |
 | LLM | DashScope (通义千问) OpenAI-compatible API |
 | 流式输出 | SSE (Server-Sent Events) |
 | 形式化记号 | `hermeneut/formal/` — mathemes + discourse algebra + register taxonomy |

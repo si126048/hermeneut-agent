@@ -27,7 +27,7 @@ interface ChatState {
   messages: ChatMessage[];
   isStreaming: boolean;
   currentPhase: number;
-  sidebarTab: 'perspectives' | 'documents' | 'search' | 'interview';
+  sidebarTab: 'perspectives' | 'documents' | 'search' | 'interview' | 'settings';
   sidebarOpen: boolean;
   interviewSessionId: string | null;
   interviewQuestionId: string | null;
