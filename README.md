@@ -2,7 +2,7 @@
 
 **对抗性多视角话语分析工具** — 形式化记号驱动的多理论视角辩证分析，产出可追溯的证据化主体结构画像。
 
-> v3.0 · Python 3.12+ · 284 tests · MIT
+> v3.1 · Python 3.12+ · 284 tests · MIT
 
 ---
 
@@ -357,7 +357,7 @@ cd web && npm ci && npm run build:tauri
 cargo tauri build                  # → src-tauri/target/release/bundle/nsis/
 ```
 
-输出：`Hermeneut-Agent_3.0.0_x64-setup.exe`（NSIS 安装程序）
+输出：`Hermeneut-Agent_3.1.0_x64-setup.exe`（NSIS 安装程序）
 
 ### 清理构建产物
 

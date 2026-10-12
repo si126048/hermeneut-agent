@@ -21,7 +21,7 @@ from .models import *
 from .rag import ingest, search
 from .workflow import Workflow
 
-app=FastAPI(title='Hermeneut-Agent',version='3.0.0')
+app=FastAPI(title='Hermeneut-Agent',version='3.1.0')
 app.add_middleware(
     CORSMiddleware,
     # The last origin supports the development workflow of opening index.html

@@ -1,6 +1,6 @@
 [project]
 name = "hermeneut-agent"
-version = "2.2.0"
+version = "3.1.0"
 description = "Adversarial multi-perspective discourse analysis toolkit"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2.10", "pypdf>=5.0", "httpx>=0.28", "openai>=1.0", "aiosqlite>=0.20", "python-multipart>=0.0.9", "mcp>=1.0,<2"]
