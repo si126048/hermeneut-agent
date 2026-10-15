@@ -96,7 +96,6 @@ class MessageExtractor:
         is_media_only = bool(MEDIA_RE.match(msg))
         if is_media_only:
             r.pure_media_msgs += 1
-            tag = msg.strip("[]")
             r.media_counts[msg] += 1
             return
 
@@ -116,7 +115,6 @@ class MessageExtractor:
         has_q = False
         has_excl = False
         has_ellipsis = False
-        has_repeated = False
 
         for ch in msg:
             if ch in ALL_PUNCT:

@@ -14,6 +14,7 @@ from .models import (
     ConceptCard,
     EvidenceSpan,
     InterviewSession,
+    InterviewState,
     Participant,
     Project,
     SourceDocument,

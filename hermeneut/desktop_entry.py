@@ -1,6 +1,5 @@
 """Entry point for PyInstaller-packaged desktop sidecar."""
 import os
-import sys
 import uvicorn
 
 

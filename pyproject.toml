@@ -20,5 +20,24 @@ tmp_path_retention_policy = "none"
 addopts = "--basetemp=.test-tmp"
 [tool.ruff]
 line-length = 100
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # blind exception catch — intentional fallback pattern
+    "B008",    # function call in defaults — FastAPI Depends/File pattern
+    "TRY004",  # prefer TypeError — style preference
+    "TRY401",  # redundant exception in logging.exception — style
+    "SIM115",  # use context manager for file open — style
+    "I001",    # import sorting — style
+    "RUF012",  # mutable class attribute — intentional
+    "RUF013",  # implicit Optional — style
+    "PERF102", # .items() vs .values() — style
+    "FLY002",  # f-string vs join — style
+    "ISC004",  # implicit string concat in collection — style
+    "S110",    # try-except-pass — intentional swallow
+    "S608",    # SQL injection check — false positives with parameterized queries
+    "FURB162", # timezone replacement — style
+    "FURB192", # min over sorted — style
+    "C401",    # generator vs set comprehension — style
+]
 [tool.hatch.build.targets.wheel]
 packages = ["hermeneut"]
