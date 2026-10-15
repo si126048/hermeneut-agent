@@ -80,10 +80,15 @@ async def stream_single_analysis(store, provider, project_id: str, participant_i
 
 
 async def stream_dialectical_analysis(store, provider, project_id: str, participant_id: str,
-                                      source_ids: list[str], text: str = ''):
+                                      source_ids: list[str], text: str = '',
+                                      perspective_ids: list[str] | None = None):
     """SSE generator wrapping the 4-phase DialecticalWorkflow."""
     from .dialectical import DialecticalWorkflow
     from .rag import ingest_text
+    from .perspectives.registry import PerspectiveRegistry
+
+    if perspective_ids is None:
+        perspective_ids = ['lacan', 'deleuze']
 
     if text and not source_ids:
         source_ids = ingest_text(store, text, project_id, participant_id)
@@ -92,40 +97,48 @@ async def stream_dialectical_analysis(store, provider, project_id: str, particip
         yield sse_event('error', {'message': 'No source text provided'})
         return
 
-    dw = DialecticalWorkflow(store, provider)
+    registry = PerspectiveRegistry()
+    try:
+        perspectives = registry.load_many(perspective_ids)
+    except KeyError as exc:
+        yield sse_event('error', {'message': f'Unknown perspective: {exc}'})
+        return
+
+    idem = f'sse-dial-{uuid.uuid4().hex[:12]}'
+    dw = DialecticalWorkflow(store, provider, perspectives)
 
     try:
-        result = dw.run(project_id, participant_id, source_ids)
+        result = dw.run(project_id, participant_id, source_ids, idem)
     except Exception as exc:
+        logger.exception('dialectical workflow failed')
         yield sse_event('error', {'message': f'Dialectical analysis failed: {exc}'})
         return
 
     yield sse_event('stage', {'name': 'phase1', 'label': '独立分析', 'phase': 1, 'status': 'done'})
 
     for pa in (result.phase1_analyses or []):
-        pid = pa.get('perspective_id', '')
-        for obs in pa.get('observations', []):
+        for obs in (pa.observations or []):
             yield sse_event('observation', {
-                'id': obs.get('id', ''),
-                'label': obs.get('label', ''),
-                'register': obs.get('register'),
-                'perspective': pid,
+                'id': obs.id,
+                'label': obs.label,
+                'register': obs.rsi_register,
+                'perspective': pa.perspective_id,
             })
-        for hyp in pa.get('hypotheses', []):
+        for hyp in (pa.hypotheses or []):
             yield sse_event('hypothesis', {
-                'id': hyp.get('id', ''),
-                'concepts': hyp.get('concept_ids', []),
-                'perspective': pid,
+                'id': hyp.id,
+                'concepts': hyp.concept_ids,
+                'perspective': pa.perspective_id,
             })
 
     yield sse_event('stage', {'name': 'phase2', 'label': '交叉批判', 'phase': 2, 'status': 'done'})
 
     for cc in (result.phase2_cross_critiques or []):
-        for ce in cc.get('counterexamples', []):
+        for ce in (cc.counterexamples or []):
             yield sse_event('counterexample', {
-                'id': ce.get('id', ''),
-                'text': ce.get('text', ''),
-                'source': 'cross_critique',
+                'id': ce.id,
+                'text': ce.text,
+                'source': ce.source,
             })
 
     yield sse_event('stage', {'name': 'phase3', 'label': '综合', 'phase': 3, 'status': 'done'})
@@ -135,25 +148,25 @@ async def stream_dialectical_analysis(store, provider, project_id: str, particip
         for conv in (syn.convergence or []):
             yield sse_event('synthesis', {
                 'type': 'convergence',
-                'finding': conv.finding if hasattr(conv, 'finding') else str(conv),
+                'finding': conv.get('finding', str(conv)) if isinstance(conv, dict) else str(conv),
             })
         for div in (syn.divergence or []):
             yield sse_event('synthesis', {
                 'type': 'divergence',
-                'topic': div.topic if hasattr(div, 'topic') else str(div),
+                'topic': div.get('topic', str(div)) if isinstance(div, dict) else str(div),
             })
 
     yield sse_event('stage', {'name': 'phase4', 'label': '报告', 'phase': 4, 'status': 'running'})
 
     report = result.phase4_report
     if report:
-        report_text = report.report if hasattr(report, 'report') else str(report)
+        report_text = report if isinstance(report, str) else str(report)
         for i in range(0, len(report_text), 80):
             chunk = report_text[i:i + 80]
             yield sse_event('text', {'chunk': chunk})
     elif provider and hasattr(provider, 'generate_stream'):
         from .llm import DIALECTICAL_REPORT_SYSTEM
-        syn_dict = syn.model_dump() if syn and hasattr(syn, 'model_dump') else {}
+        syn_dict = syn.model_dump() if syn else {}
         user_content = f"综合分析结果：\n{json.dumps(syn_dict, ensure_ascii=False, indent=2)}\n\n请撰写完整的辩证分析报告。"
         try:
             for chunk in provider.generate_stream(DIALECTICAL_REPORT_SYSTEM, user_content):

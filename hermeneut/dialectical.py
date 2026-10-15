@@ -170,8 +170,8 @@ class DialecticalWorkflow:
                     'source': 'cross_critique',
                 })
                 counterexamples.append(ce)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning('skipping invalid cross-critique counterexample %d from %s: %s', index, source.id, exc)
         return CrossCritique(
             source_perspective_id=source.id,
             target_perspective_id=target.perspective_id,

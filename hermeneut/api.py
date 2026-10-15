@@ -706,6 +706,7 @@ class ChatDialecticalIn(BaseModel):
     source_ids: list[str] = Field(default_factory=list)
     project_id: str = 'default'
     participant_id: str = 'anonymous'
+    perspective_ids: list[str] = Field(default_factory=lambda: ['lacan', 'deleuze'])
 
 
 @app.post('/api/v1/chat/dialectical', dependencies=[Depends(verify_api_key)])
@@ -714,7 +715,7 @@ async def chat_dialectical_stream(x: ChatDialecticalIn):
     _ensure_chat_context(x.project_id, x.participant_id)
     provider = _get_provider()
     return StreamingResponse(
-        stream_dialectical_analysis(store, provider, x.project_id, x.participant_id, x.source_ids, x.text),
+        stream_dialectical_analysis(store, provider, x.project_id, x.participant_id, x.source_ids, x.text, x.perspective_ids),
         media_type='text/event-stream',
         headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
     )

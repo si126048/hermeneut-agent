@@ -205,8 +205,8 @@ class Counterexample(BaseModel):
     def _validate_score(self):
         if not 0.0 <= self.disconfirmation_score <= 1.0:
             raise ValueError('disconfirmation_score must be in [0, 1]')
-        if self.source not in {'llm', 'human'}:
-            raise ValueError("source must be 'llm' or 'human'")
+        if self.source not in {'llm', 'human', 'cross_critique'}:
+            raise ValueError("source must be 'llm', 'human', or 'cross_critique'")
         return self
 
     def __contains__(self, value: str) -> bool:
