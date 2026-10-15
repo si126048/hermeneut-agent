@@ -4,7 +4,7 @@ import { useChatStore } from '../../lib/store';
 
 export function StatusFooter() {
   const [healthy, setHealthy] = useState(false);
-  const { messages, clearMessages, setSidebarOpen, sidebarOpen } = useChatStore();
+  const { messages, clearMessages } = useChatStore();
 
   useEffect(() => {
     health()
@@ -18,33 +18,32 @@ export function StatusFooter() {
     return () => clearInterval(interval);
   }, []);
 
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.06em' };
+
   return (
-    <footer className="h-7 flex items-center justify-between px-4 border-t border-border dark:border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-400">
+    <footer
+      className="h-7 flex items-center justify-between px-4 border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark text-muted"
+      style={mono}
+    >
       <div className="flex items-center gap-3">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              healthy ? 'bg-green-500' : 'bg-red-500'
-            }`}
+            className={`w-1.5 h-1.5 ${healthy ? 'bg-accent' : 'bg-glitch-a'}`}
           />
           SYS
         </span>
+        <span className="opacity-40">|</span>
         <span>v3.1.0</span>
+        <span className="opacity-40">|</span>
         <span>LOCAL</span>
       </div>
       <div className="flex items-center gap-3">
-        <span>{messages.length} messages</span>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="hover:text-gray-600"
-        >
-          {sidebarOpen ? '\u25C0' : '\u25B6'}
-        </button>
+        <span>{messages.length} MSG</span>
         <button
           onClick={clearMessages}
-          className="hover:text-red-500"
+          className="hover:text-accent transition-colors"
         >
-          Clear
+          CLR
         </button>
       </div>
     </footer>

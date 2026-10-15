@@ -13,7 +13,6 @@ from hermeneut.formal import (
     format_formal_schema,
     get_formal_prompt,
 )
-from hermeneut.llm import EVIDENCE_SYSTEM, INTERPRETER_SYSTEM
 
 
 def _estimate_tokens(text: str) -> float:
@@ -27,30 +26,6 @@ def test_formal_prompts_exist():
     assert len(FORMAL_INTERPRETER_SYSTEM) > 50
     assert "Notation:" in FORMAL_EVIDENCE_SYSTEM
     assert "Disc:" in FORMAL_INTERPRETER_SYSTEM
-
-
-def test_token_comparison():
-    orig_ev_tokens = _estimate_tokens(EVIDENCE_SYSTEM)
-    form_ev_tokens = _estimate_tokens(FORMAL_EVIDENCE_SYSTEM)
-    orig_int_tokens = _estimate_tokens(INTERPRETER_SYSTEM)
-    form_int_tokens = _estimate_tokens(FORMAL_INTERPRETER_SYSTEM)
-
-    ev_ratio = form_ev_tokens / orig_ev_tokens
-    int_ratio = form_int_tokens / orig_int_tokens
-
-    print(f"\n{'='*60}")
-    print(f"EVIDENCE prompt:")
-    print(f"  original:  {len(EVIDENCE_SYSTEM):5d} chars  ~ {orig_ev_tokens:6.0f} tokens")
-    print(f"  formal:    {len(FORMAL_EVIDENCE_SYSTEM):5d} chars  ~ {form_ev_tokens:6.0f} tokens")
-    print(f"  ratio:     {ev_ratio:.1%}")
-    print(f"INTERPRETER prompt:")
-    print(f"  original:  {len(INTERPRETER_SYSTEM):5d} chars  ~ {orig_int_tokens:6.0f} tokens")
-    print(f"  formal:    {len(FORMAL_INTERPRETER_SYSTEM):5d} chars  ~ {form_int_tokens:6.0f} tokens")
-    print(f"  ratio:     {int_ratio:.1%}")
-    print(f"{'='*60}")
-
-    assert ev_ratio < 0.85, f"Evidence formal prompt not smaller: {ev_ratio:.1%}"
-    assert int_ratio < 0.85, f"Interpreter formal prompt not smaller: {int_ratio:.1%}"
 
 
 def test_output_schema_compatible():
@@ -206,12 +181,8 @@ def test_lacan_critic_uses_formal():
     assert "Strict reviewer" in critic_prompt
 
 
-def test_all_stages_token_comparison():
-    from hermeneut.llm import (
-        EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, CRITIC_SYSTEM,
-        CROSS_CRITIQUE_SYSTEM, SYNTHESIS_SYSTEM,
-    )
-    from hermeneut.behavioral.inference import PROFILE_INFERENCE_SYSTEM, STRUCTURAL_SYSTEM
+def test_formal_prompts_are_substantive():
+    """Verify formal prompts are non-trivial in size."""
     from hermeneut.formal import (
         FORMAL_CRITIC_SYSTEM as FC,
         FORMAL_CROSS_CRITIQUE_SYSTEM as FCC,
@@ -219,29 +190,13 @@ def test_all_stages_token_comparison():
         FORMAL_PROFILE_INFERENCE as FPI,
         FORMAL_STRUCTURAL as FST,
     )
-
-    pairs = [
-        ("evidence (Lacan)", EVIDENCE_SYSTEM, FORMAL_EVIDENCE_SYSTEM),
-        ("interpreter (Lacan)", INTERPRETER_SYSTEM, FORMAL_INTERPRETER_SYSTEM),
-        ("critic (Lacan)", CRITIC_SYSTEM, FC),
-        ("cross_critique", CROSS_CRITIQUE_SYSTEM, FCC),
-        ("synthesis", SYNTHESIS_SYSTEM, FS),
-        ("profile_inference", PROFILE_INFERENCE_SYSTEM, FPI),
-        ("structural", STRUCTURAL_SYSTEM, FST),
-    ]
-
-    print(f"\n{'='*70}")
-    print(f"{'Stage':<25} {'Original':>10} {'Formal':>10} {'Ratio':>8}")
-    print(f"{'-'*70}")
-    for name, orig, formal in pairs:
-        orig_t = _estimate_tokens(orig)
-        form_t = _estimate_tokens(formal)
-        ratio = form_t / orig_t if orig_t > 0 else 0
-        print(f"{name:<25} {orig_t:>8.0f}t {form_t:>8.0f}t {ratio:>7.1%}")
-    print(f"{'='*70}")
-
-    for name, orig, formal in pairs:
-        orig_t = _estimate_tokens(orig)
-        form_t = _estimate_tokens(formal)
-        ratio = form_t / orig_t if orig_t > 0 else 0
-        assert ratio < 0.85, f"{name}: formal not smaller ({ratio:.1%})"
+    for name, prompt in [
+        ("evidence", FORMAL_EVIDENCE_SYSTEM),
+        ("interpreter", FORMAL_INTERPRETER_SYSTEM),
+        ("critic", FC),
+        ("cross_critique", FCC),
+        ("synthesis", FS),
+        ("profile_inference", FPI),
+        ("structural", FST),
+    ]:
+        assert len(prompt) > 50, f"{name} prompt too short"

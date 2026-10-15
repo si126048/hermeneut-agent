@@ -1,6 +1,10 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_store::StoreExt;
+
+const STORE_PATH: &str = "settings.json";
+const API_KEY_FIELD: &str = "dashscope_api_key";
 
 pub async fn start_sidecar(app: &AppHandle) {
     let data_dir = Manager::path(app).app_data_dir().expect("failed to get app_data_dir");
@@ -9,8 +13,19 @@ pub async fn start_sidecar(app: &AppHandle) {
 
     std::fs::create_dir_all(&storage_path).ok();
 
+    let dashscope_key = app
+        .store(STORE_PATH)
+        .ok()
+        .and_then(|s| s.get(API_KEY_FIELD))
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+
     let api_key_state = app.state::<crate::commands::ApiKeyState>();
-    let dashscope_key = api_key_state.dashscope.read().unwrap().clone().unwrap_or_default();
+    *api_key_state.dashscope.write().unwrap() = if dashscope_key.is_empty() {
+        None
+    } else {
+        Some(dashscope_key.clone())
+    };
 
     let sidecar = match app.shell().sidecar("hermeneut-backend") {
         Ok(cmd) => cmd,

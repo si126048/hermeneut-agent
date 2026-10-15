@@ -15,11 +15,11 @@ const variantLabels: Record<string, string> = {
 };
 
 const variantStyles: Record<string, string> = {
-  observation: 'bg-gray-50 dark:bg-gray-800/50',
-  hypothesis: 'bg-amber-50/50 dark:bg-amber-900/10',
-  counterexample: 'bg-orange-50/50 dark:bg-orange-900/10',
-  synthesis: 'bg-blue-50/50 dark:bg-blue-900/10',
-  report: 'bg-gray-50 dark:bg-gray-800/50',
+  observation: 'bg-surface-2/60 dark:bg-surface-2-dark/60',
+  hypothesis: 'bg-amber-50/40 dark:bg-amber-900/10',
+  counterexample: 'bg-orange-50/40 dark:bg-orange-900/10',
+  synthesis: 'bg-blue-50/40 dark:bg-blue-900/10',
+  report: 'bg-surface-2/60 dark:bg-surface-2-dark/60',
 };
 
 interface Props {
@@ -30,33 +30,38 @@ export function AnalysisCardComponent({ card }: Props) {
   const borderColor = card.register ? registerColors[card.register] || '' : '';
   const variantLabel = variantLabels[card.variant] || card.variant.toUpperCase();
   const bgStyle = variantStyles[card.variant] || '';
+  const mono = { fontFamily: 'var(--font-mono)' };
 
   return (
     <div
-      className={`border-l-3 ${borderColor} ${bgStyle} rounded-r-lg px-3 py-2 text-sm`}
+      className={`border-l-[3px] ${borderColor} ${bgStyle} px-3 py-2 text-sm`}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-mono font-semibold text-gray-500 dark:text-gray-400">
+        <span
+          className="text-[10px] font-semibold text-muted tracking-wider"
+          style={mono}
+        >
           {variantLabel}
         </span>
         {card.tag && (
-          <span className="text-xs font-mono text-gray-400">{card.tag}</span>
+          <span className="text-[10px] text-muted/60" style={mono}>{card.tag}</span>
         )}
         {card.register && (
           <span
-            className={`text-xs px-1.5 py-0.5 rounded font-mono ${
+            className={`text-[10px] px-1.5 py-0.5 border ${
               card.register === 'S'
-                ? 'bg-symbolic/10 text-symbolic'
+                ? 'border-symbolic/30 text-symbolic bg-symbolic/5'
                 : card.register === 'I'
-                ? 'bg-imaginary/10 text-imaginary'
-                : 'bg-real/10 text-real'
+                ? 'border-imaginary/30 text-imaginary bg-imaginary/5'
+                : 'border-real/30 text-real bg-real/5'
             }`}
+            style={mono}
           >
             {card.register}
           </span>
         )}
       </div>
-      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+      <p className="text-ink-soft dark:text-ink-soft-dark leading-relaxed text-[13px]">
         {card.content}
       </p>
       {card.meta && Object.keys(card.meta).length > 0 && (
@@ -64,7 +69,8 @@ export function AnalysisCardComponent({ card }: Props) {
           {Object.entries(card.meta).map(([k, v]) => (
             <span
               key={k}
-              className="text-xs text-gray-400 dark:text-gray-500"
+              className="text-[10px] text-muted/60"
+              style={mono}
             >
               {k}: {v}
             </span>

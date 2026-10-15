@@ -12,14 +12,14 @@ export function MessageBubble({ message }: Props) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[80%] rounded-xl px-4 py-3 ${
+        className={`max-w-[80%] px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? 'bg-symbolic text-white rounded-br-sm'
-            : 'bg-white dark:bg-gray-800 border border-border dark:border-border-dark rounded-bl-sm'
+            ? 'bg-ink text-ink-dark border-l-[3px] border-accent'
+            : 'bg-surface-2 dark:bg-surface-2-dark border border-border dark:border-border-dark'
         }`}
       >
         {message.content && (
-          <div className="text-sm leading-relaxed">
+          <div className={isUser ? '' : 'text-ink dark:text-ink-dark'}>
             {isUser ? (
               <p className="whitespace-pre-wrap">{message.content}</p>
             ) : (
@@ -28,7 +28,7 @@ export function MessageBubble({ message }: Props) {
           </div>
         )}
         {message.streaming && !message.content && (
-          <span className="inline-block w-2 h-4 bg-current animate-pulse" />
+          <span className="inline-block w-1.5 h-4 bg-accent animate-pulse" />
         )}
         {message.cards && message.cards.length > 0 && (
           <div className="mt-3 space-y-2">
@@ -42,7 +42,8 @@ export function MessageBubble({ message }: Props) {
             {message.attachments.map((name, i) => (
               <span
                 key={i}
-                className="text-xs px-2 py-0.5 rounded bg-black/10 dark:bg-white/10"
+                className="text-xs px-2 py-0.5 border border-border dark:border-border-dark"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}
               >
                 {name}
               </span>

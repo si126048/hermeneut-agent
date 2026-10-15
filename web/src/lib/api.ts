@@ -85,3 +85,48 @@ export const theorySearch = async (q: string, projectId = 'default', limit = 10)
   );
   return res.items;
 };
+
+export interface ProjectData {
+  id: string;
+  name: string;
+  description: string;
+  policy_version: string;
+  owner_id: string;
+  created_at: string;
+}
+
+export interface ParticipantData {
+  id: string;
+  project_id: string;
+  pseudonym: string;
+  consent_scope: { withdrawn_at?: string; expires_at?: string };
+  withdrawn_at: string | null;
+  created_at: string;
+}
+
+export const ensureProject = (id: string, name?: string) =>
+  apiFetch('/api/v1/projects', { method: 'POST', body: JSON.stringify({ id, name: name || id }) }).catch(() => {});
+export const ensureParticipant = (id: string, projectId: string) =>
+  apiFetch('/api/v1/participants', { method: 'POST', body: JSON.stringify({ id, project_id: projectId }) }).catch(() => {});
+
+export const listProjects = () =>
+  apiFetch<{ projects: ProjectData[] }>('/api/v1/projects');
+export const createProject = (body: { id: string; name?: string; description?: string }) =>
+  apiFetch<ProjectData>('/api/v1/projects', { method: 'POST', body: JSON.stringify(body) });
+export const deleteProject = (id: string) =>
+  apiFetch<void>(`/api/v1/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const listParticipants = (projectId: string) =>
+  apiFetch<{ participants: ParticipantData[] }>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/participants`
+  );
+export const deleteParticipant = (projectId: string, participantId: string) =>
+  apiFetch<void>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/participants/${encodeURIComponent(participantId)}`,
+    { method: 'DELETE' }
+  );
+
+export type Persona = { id: string; project_id: string; participant_id: string; name: string; status: string; model: string; mode: string; alpha: number };
+export const listPersonas = (projectId: string, participantId?: string) => apiFetch<{ personas: Persona[] }>(`/api/v1/personas?project_id=${encodeURIComponent(projectId)}${participantId ? `&participant_id=${encodeURIComponent(participantId)}` : ''}`);
+export const createPersona = (body: { project_id: string; participant_id: string; name: string; model?: string; mode?: string; alpha?: number }) => apiFetch<Persona>('/api/v1/personas', { method: 'POST', body: JSON.stringify(body) });
+export const trainPersona = (id: string) => apiFetch<unknown>(`/api/v1/personas/${id}/train`, { method: 'POST' });
+export const chatPersona = (id: string, body: { prompt: string; conversation_id?: string }, onEvent: (event: string, data: unknown) => void) => apiStream(`/api/v1/personas/${id}/chat`, body, onEvent);

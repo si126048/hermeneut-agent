@@ -40,10 +40,8 @@ class DialecticalWorkflow:
         logger.info("dialectical run=%s perspectives=%s", run_id, [p.id for p in self.perspectives])
 
         p = self.store.get_participant(project_id, participant_id)
-        if not p or p.withdrawn_at or p.consent_scope.withdrawn_at:
+        if not p or p.withdrawn_at or not p.consent_scope.is_active():
             raise PermissionError('PARTICIPANT_WITHDRAWN')
-        if Workflow._consent_expired(p.consent_scope.expires_at):
-            raise PermissionError('CONSENT_EXPIRED')
 
         docs = [self.store.get_document(x) for x in source_ids]
         if any(not d or d.participant_id != participant_id or d.project_id != project_id for d in docs):

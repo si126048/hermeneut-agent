@@ -1,12 +1,13 @@
 import pytest
-from hermeneut.llm import FakeProvider, QwenProvider, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, CRITIC_SYSTEM
+from hermeneut.llm import FakeProvider, QwenProvider
+from hermeneut.formal.prompts import FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM, FORMAL_CRITIC_SYSTEM
 from hermeneut.models import Observation, Hypothesis
 
 
 def test_fake_provider_evidence_stage():
     fp = FakeProvider()
     result = fp.generate_structured(
-        EVIDENCE_SYSTEM,
+        FORMAL_EVIDENCE_SYSTEM,
         {"span_ids": ["s1", "s2"], "spans_text": "text"},
         Observation,
         {"stage": "evidence"},
@@ -19,7 +20,7 @@ def test_fake_provider_evidence_stage():
 def test_fake_provider_interpreter_stage():
     fp = FakeProvider()
     result = fp.generate_structured(
-        INTERPRETER_SYSTEM,
+        FORMAL_INTERPRETER_SYSTEM,
         {"observation_ids": ["o1"], "theory_reference_ids": ["t1"],
          "observation_labels": ["label1"]},
         Hypothesis,
@@ -33,7 +34,7 @@ def test_fake_provider_interpreter_stage():
 def test_fake_provider_critic_stage_per_hypothesis():
     fp = FakeProvider()
     result = fp.generate_structured(
-        CRITIC_SYSTEM,
+        FORMAL_CRITIC_SYSTEM,
         {"hypothesis_ids": ["h1", "h2"], "observation_ids": ["o1"],
          "observation_labels": ["l1"]},
         dict,
@@ -64,9 +65,9 @@ def test_qwen_provider_empty_env_rejected(monkeypatch):
 
 
 def test_prompt_constants_non_empty():
-    assert len(EVIDENCE_SYSTEM) > 100
-    assert len(INTERPRETER_SYSTEM) > 100
-    assert len(CRITIC_SYSTEM) > 100
-    assert "拉康" in EVIDENCE_SYSTEM
-    assert "拉康" in INTERPRETER_SYSTEM
-    assert "反例" in CRITIC_SYSTEM
+    assert len(FORMAL_EVIDENCE_SYSTEM) > 100
+    assert len(FORMAL_INTERPRETER_SYSTEM) > 100
+    assert len(FORMAL_CRITIC_SYSTEM) > 100
+    assert "Lacan" in FORMAL_EVIDENCE_SYSTEM
+    assert "discourse" in FORMAL_INTERPRETER_SYSTEM.lower()
+    assert "counterexample" in FORMAL_CRITIC_SYSTEM.lower()

@@ -226,18 +226,19 @@ export function ChatInput() {
   ];
 
   return (
-    <div className="border-t border-border dark:border-border-dark bg-white dark:bg-surface-dark">
+    <div className="border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
       {files.length > 0 && (
         <div className="px-4 pt-2 flex gap-2 flex-wrap">
           {files.map((f, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 border border-border dark:border-border-dark text-ink-soft dark:text-ink-soft-dark"
+              style={{ fontFamily: 'var(--font-mono)' }}
             >
               {f.name}
               <button
                 onClick={() => removeFile(i)}
-                className="ml-1 hover:text-red-500"
+                className="ml-1 hover:text-accent"
               >
                 &times;
               </button>
@@ -247,7 +248,7 @@ export function ChatInput() {
       )}
       <div
         {...getRootProps()}
-        className={`px-4 py-3 ${isDragActive ? 'bg-accent/5 ring-2 ring-symbolic/30 ring-inset' : ''}`}
+        className={`px-4 py-3 ${isDragActive ? 'bg-accent/5 ring-1 ring-accent/30 ring-inset' : ''}`}
       >
         <input {...getInputProps()} />
         <input
@@ -258,18 +259,19 @@ export function ChatInput() {
           className="hidden"
           onChange={handleFileInput}
         />
-        <div className="flex gap-1 mb-2">
+        <div className="flex gap-0 mb-2 border border-border dark:border-border-dark">
           {modes.map((m) => (
             <button
               key={m.key}
               onClick={() => setMode(m.key)}
-              className={`text-xs px-2 py-1 rounded transition-colors ${
+              className={`text-xs px-3 py-1 transition-colors border-r border-border dark:border-border-dark last:border-r-0 ${
                 mode === m.key
-                  ? 'bg-symbolic text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  ? 'bg-ink text-ink-dark'
+                  : 'bg-transparent text-muted hover:text-ink dark:hover:text-ink-dark hover:bg-ink/5'
               }`}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.08em' }}
             >
-              {m.label}
+              {m.label.toUpperCase()}
             </button>
           ))}
         </div>
@@ -281,8 +283,8 @@ export function ChatInput() {
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             rows={1}
-            className="flex-1 min-w-0 resize-none bg-transparent border-none outline-none text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 min-h-[36px] max-h-32"
-            style={{ height: 'auto', overflow: 'hidden' }}
+            className="flex-1 min-w-0 resize-none bg-transparent border-none outline-none text-sm text-ink dark:text-ink-dark placeholder-muted min-h-[36px] max-h-32"
+            style={{ height: 'auto', overflow: 'hidden', fontFamily: 'var(--font-mono)' }}
             onInput={(e) => {
               const t = e.currentTarget;
               t.style.height = 'auto';
@@ -292,20 +294,21 @@ export function ChatInput() {
           <button
             onClick={openFilePicker}
             title="上传文件"
-            className="p-2 rounded-lg text-gray-400 hover:text-symbolic hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 text-muted hover:text-accent transition-colors"
           >
             <PaperclipIcon />
           </button>
           <button
             onClick={handleSend}
             disabled={isStreaming || (!text.trim() && files.length === 0)}
-            className="px-3 py-1.5 rounded-lg bg-symbolic text-white text-sm font-medium disabled:opacity-30 hover:bg-symbolic/90 transition-colors"
+            className="px-4 py-1.5 bg-ink text-ink-dark text-xs font-medium disabled:opacity-30 hover:bg-accent transition-colors border border-ink dark:border-ink-dark"
+            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}
           >
-            {isStreaming ? '...' : '发送'}
+            {isStreaming ? '...' : 'SEND'}
           </button>
         </div>
-        <div className="mt-1 text-xs text-gray-400">
-          Ctrl+Enter 发送 &middot; 拖拽或点击附件图标上传文件
+        <div className="mt-1 text-muted/60" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.06em' }}>
+          Ctrl+Enter &middot; DRAG OR ATTACH
         </div>
       </div>
     </div>

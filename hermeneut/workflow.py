@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 
 from .annotation import CulturalAnnotator
 from .db import Store, new_id
+from .formal.prompts import FORMAL_CRITIC_SYSTEM, FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM
 from .fuzzy import HallucinationGuard, MembershipFunction, aggregate_grounding
-from .llm import CRITIC_SYSTEM, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM, FakeProvider
+from .llm import FakeProvider
 from .models import (
     AnalysisPacket,
     AnalysisRun,
@@ -50,14 +50,6 @@ def _sanitize_hypothesis(d: dict) -> dict:
             {**pc, 'fixation_span_ids': _coerce_str_list(pc.get('fixation_span_ids', []))}
             for pc in d['points_de_capiton']
         ]
-    if 'counterexamples' in d:
-        d['counterexamples'] = [
-            item if isinstance(item, dict) else {
-                'id': f"ce_{d.get('id', 'hyp')}_{index + 1}",
-                'text': str(item), 'source': 'llm'
-            }
-            for index, item in enumerate(d['counterexamples'])
-        ]
     return d
 
 
@@ -79,10 +71,8 @@ class Workflow:
             return existing
 
         p = self.store.get_participant(project_id, participant_id)
-        if not p or p.withdrawn_at or p.consent_scope.withdrawn_at:
+        if not p or p.withdrawn_at or not p.consent_scope.is_active():
             raise PermissionError('PARTICIPANT_WITHDRAWN')
-        if self._consent_expired(p.consent_scope.expires_at):
-            raise PermissionError('CONSENT_EXPIRED')
 
         docs = [self.store.get_document(x) for x in source_ids]
         if any(not d or d.participant_id != participant_id or d.project_id != project_id for d in docs):
@@ -105,18 +95,6 @@ class Workflow:
         self._validate_hypotheses(hyps, obs, project_id)
         hyps = self._critique(r, obs, hyps)
         return self._finalize(r, participant_id, obs, hyps, spans, annotations)
-
-    @staticmethod
-    def _consent_expired(expires_at: str | None) -> bool:
-        if not expires_at:
-            return False
-        try:
-            expiry = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-            if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=UTC)
-            return expiry <= datetime.now(UTC)
-        except ValueError:
-            return True
 
     @staticmethod
     def _validate_observations(observations: list[Observation], span_ids: set[str]) -> None:
@@ -162,7 +140,7 @@ class Workflow:
         sample = spans[:50]
         spans_text = '\n\n'.join(f'[span_id={s.id}]\n{s.excerpt}' for s in sample)
         ev = self.provider.generate_structured(
-            EVIDENCE_SYSTEM,
+            FORMAL_EVIDENCE_SYSTEM,
             {'span_ids': [s.id for s in spans], 'spans_text': spans_text},
             Observation, {'stage': 'evidence'},
         )
@@ -191,7 +169,7 @@ class Workflow:
                 for a in annotations
             )
         hyp = self.provider.generate_structured(
-            INTERPRETER_SYSTEM,
+            FORMAL_INTERPRETER_SYSTEM,
             {
                 'observation_ids': [o.id for o in obs],
                 'theory_reference_ids': theory_refs,
@@ -209,7 +187,7 @@ class Workflow:
     def _critique(self, r: AnalysisRun, obs: list[Observation], hyps: list[Hypothesis]) -> list[Hypothesis]:
         hyps_summary = [{'id': h.id, 'concept_ids': h.concept_ids, 'alternatives': h.alternatives} for h in hyps]
         crit = self.provider.generate_structured(
-            CRITIC_SYSTEM,
+            FORMAL_CRITIC_SYSTEM,
             {
                 'observation_ids': [o.id for o in obs],
                 'observation_labels': [o.label for o in obs],

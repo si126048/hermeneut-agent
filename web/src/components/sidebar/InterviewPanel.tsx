@@ -1,28 +1,44 @@
 import { useState } from 'react';
-import { apiFetch } from '../../lib/api';
+import { apiFetch, ensureProject, ensureParticipant } from '../../lib/api';
 import { useChatStore } from '../../lib/store';
 
-interface InterviewSession {
-  session_id: string;
+interface InterviewQuestion {
+  id: string;
+  text: string;
+  kind: string;
+  module_id: string;
+  module_title: string;
+  context_hint: string;
+}
+
+interface InterviewSessionData {
+  id: string;
   state: string;
-  current_question?: {
-    id: string;
-    text: string;
-    module: string;
+  current_question: InterviewQuestion | null;
+  progress: {
+    completed_primary: number;
+    total_primary: number;
+    required_remaining: number;
   };
-  answered_count: number;
-  total_questions: number;
+}
+
+interface CreateInterviewResponse {
+  session: InterviewSessionData;
+  config: Record<string, unknown>;
 }
 
 export function InterviewPanel() {
   const { addMessage, setInterviewSessionId, setInterviewQuestionId, setMode } = useChatStore();
-  const [session, setSession] = useState<InterviewSession | null>(null);
+  const [session, setSession] = useState<InterviewSessionData | null>(null);
   const [loading, setLoading] = useState(false);
+  const mono = { fontFamily: 'var(--font-mono)' };
 
   const startInterview = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch<InterviewSession>('/api/v1/interviews', {
+      await ensureProject('default');
+      await ensureParticipant('anonymous', 'default');
+      const res = await apiFetch<CreateInterviewResponse>('/api/v1/interviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -30,13 +46,14 @@ export function InterviewPanel() {
           participant_id: 'anonymous',
         }),
       });
-      setSession(res);
-      setInterviewSessionId(res.session_id);
-      if (res.current_question) {
-        setInterviewQuestionId(res.current_question.id);
+      const s = res.session;
+      setSession(s);
+      setInterviewSessionId(s.id);
+      if (s.current_question) {
+        setInterviewQuestionId(s.current_question.id);
         addMessage({
           role: 'assistant',
-          content: `我们来开始一次访谈。\n\n> **问题** · ${res.current_question.module}\n>\n> ${res.current_question.text}\n\n请在下方输入你的回答。`,
+          content: `我们来开始一次访谈。\n\n> **问题** · ${s.current_question.module_title}\n>\n> ${s.current_question.text}\n\n请在下方输入你的回答。`,
         });
       }
       setMode('interview');
@@ -53,65 +70,69 @@ export function InterviewPanel() {
   const resetInterview = async () => {
     if (!session) return;
     try {
-      await apiFetch(`/api/v1/interviews/${session.session_id}/reset`, { method: 'POST' });
+      await apiFetch(`/api/v1/interviews/${session.id}/reset`, { method: 'POST' });
       setSession(null);
       setInterviewSessionId(null);
       setInterviewQuestionId(null);
-    } catch { /* ignore */ }
+    } catch (e) { console.warn('Failed to reset interview:', e); }
   };
+
+  const completed = session?.progress.completed_primary ?? 0;
+  const total = session?.progress.total_primary ?? 0;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
     <div className="p-4">
       {!session ? (
         <div className="text-center py-6">
-          <div className="text-3xl mb-3 text-gray-300">&#9993;</div>
-          <p className="text-xs text-gray-500 mb-4">
-            开始结构化访谈，系统将引导你完成一系列问题。
+          <div className="text-3xl mb-3 text-muted/30">&#9993;</div>
+          <p className="text-xs text-muted mb-4" style={mono}>
+            STRUCTURED INTERVIEW SESSION
           </p>
           <button
             onClick={startInterview}
             disabled={loading}
-            className="px-4 py-2 rounded-lg bg-symbolic text-white text-sm font-medium disabled:opacity-50 hover:bg-symbolic/90 transition-colors"
+            className="px-4 py-1.5 text-xs border border-ink dark:border-ink-dark bg-transparent text-ink dark:text-ink-dark hover:bg-ink hover:text-ink-dark disabled:opacity-30 transition-colors"
+            style={mono}
           >
-            {loading ? '启动中...' : '开始访谈'}
+            {loading ? 'STARTING...' : 'START INTERVIEW'}
           </button>
         </div>
       ) : (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              访谈进行中
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-muted tracking-wider" style={mono}>
+              INTERVIEW ACTIVE
             </span>
-            <span className="text-xs text-gray-400">
-              {session.answered_count}/{session.total_questions}
+            <span className="text-[10px] text-muted" style={mono}>
+              {completed}/{total}
             </span>
           </div>
-          <div className="mb-3">
-            <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-symbolic rounded-full transition-all"
-                style={{ width: `${(session.answered_count / Math.max(session.total_questions, 1)) * 100}%` }}
-              />
-            </div>
+          <div className="mb-3 h-[2px] bg-border dark:bg-border-dark">
+            <div
+              className="h-full bg-accent transition-all"
+              style={{ width: `${pct}%` }}
+            />
           </div>
           {session.current_question && (
-            <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 mb-3">
-              <div className="text-xs text-symbolic font-medium mb-1">
-                {session.current_question.module}
+            <div className="border-l-2 border-accent/40 pl-3 mb-3">
+              <div className="text-[10px] text-muted tracking-wider mb-1" style={mono}>
+                {session.current_question.module_title}
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-sm text-ink-soft dark:text-ink-soft-dark leading-relaxed" style={{ fontFamily: 'var(--font-zh)' }}>
                 {session.current_question.text}
               </p>
             </div>
           )}
-          <div className="text-xs text-gray-400 mb-3">
-            在聊天框中输入回答，系统会自动提交。
+          <div className="text-[10px] text-muted/60 mb-3" style={mono}>
+            TYPE YOUR ANSWER BELOW
           </div>
           <button
             onClick={resetInterview}
-            className="w-full text-xs py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 hover:text-red-500 hover:border-red-300 transition-colors"
+            className="w-full text-[10px] py-1.5 border border-border dark:border-border-dark text-muted hover:text-accent hover:border-accent transition-colors"
+            style={mono}
           >
-            重置访谈
+            RESET
           </button>
         </div>
       )}

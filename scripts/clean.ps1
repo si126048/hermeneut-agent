@@ -21,6 +21,9 @@ Remove-Item -Recurse -Force ".pytest_cache"
 Remove-Item -Recurse -Force ".ruff_cache"
 Remove-Item -Recurse -Force ".test-tmp"
 Remove-Item -Recurse -Force "*.egg-info"
+Remove-Item -Force "test-*.sqlite"
+Remove-Item -Force "*.db-shm"
+Remove-Item -Force "*.db-wal"
 
 # Frontend
 Remove-Item -Recurse -Force "web\node_modules"

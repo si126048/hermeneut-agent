@@ -4,7 +4,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
-$env:PYTHONPATH = $PSScriptRoot
 New-Item -ItemType Directory -Force (Split-Path -Parent $Database) | Out-Null
 
 Write-Host "Starting Hermeneut interactive CLI..." -ForegroundColor Cyan

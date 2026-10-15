@@ -76,7 +76,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Adversarial multi-perspective discourse analysis toolkit.",
         epilog="常用流程：init → add-participant → add-source → analyze → review → export；主体画像使用 subject build。",
     )
-    parser.add_argument("--version", action="version", version="hermeneut-agent 2.0.0")
+    from . import __version__
+    parser.add_argument("--version", action="version", version=f"hermeneut-agent {__version__}")
     parser.add_argument("--db", default=os.getenv("LACAN_DB_PATH", "./data/lacan.db"), help="SQLite path")
     parser.add_argument("--pretty", action="store_true", help="pretty-print JSON output")
     parser.add_argument("--output", help="write the command result to a JSON file")

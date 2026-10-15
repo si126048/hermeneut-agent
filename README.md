@@ -14,6 +14,14 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 
 这不是临床诊断工具，也不把语言口癖直接等同于人格。
 
+### v3.1 新特性
+
+- **开机动画** — 黑幕品牌标识 → 过曝洗白 → 暖白技术档案底板 → 五步交互式授权 → 环形准星 → 色散故障揭幕（系统字体，零网络依赖）
+- **任务系统** — 多任务对话隔离，每个任务独立消息历史，支持新建/切换/删除
+- **垂直图标导航** — 左侧图标列（任务/视角/文档/检索/访谈/设置），点击展开对应面板
+- **TopoStyle Persona** — 基于本地 Ollama 的拓扑人格建模，支持训练和对话
+- **技术档案 UI** — 暖白底板 (#e5e3df)、橙色强调 (#ff7500)、等宽字体、发丝边框
+
 ---
 
 ## 核心能力
@@ -29,7 +37,8 @@ Hermeneut 把聊天、访谈、写作样本等研究材料转化为**有证据�
 | **多格式文档提取** | PageIndex 文档系统支持 txt / md / pdf / html / epub / docx / xlsx / pptx（分析材料导入限 txt / md / pdf） |
 | **人工审核门禁** | CLI + JSON 审核文件驱动，所有结构候选必须人工批准 |
 | **同意管理** | 细粒度同意 scope、过期、撤回与派生数据清理 |
-| **Web UI** | Vite + React + TypeScript 对话式界面：聊天分析、辩证分析、访谈、文件上传（txt/md/pdf） |
+| **Web UI** | Vite + React + TypeScript 对话式界面：任务系统、垂直图标导航、聊天分析、辩证分析、访谈、文件上传（txt/md/pdf） |
+| **TopoStyle Persona** | 基于本地 Ollama 的拓扑人格建模，训练 + SSE 流式对话，复用项目/参与者/授权体系 |
 | **对话模式** | 专门化话语分析 Agent，支持拉康/德勒兹理论框架的连贯对话 |
 | **SSE 流式输出** | 实时流式显示分析阶段、观察、假设、反例和报告 |
 
@@ -202,6 +211,20 @@ Phase 4  报告        可选：生成自然语言综合报告
 
 ## API
 
+### TopoStyle 本地 Persona
+
+TopoStyle 复用 Hermeneut 的项目、参与者、授权和 SQLite 存储。模型通过本地 Ollama 运行，默认使用 `qwen2.5:3b` 和 `nomic-embed-text`：
+
+```bash
+ollama pull qwen2.5:3b
+ollama pull nomic-embed-text
+uv pip install -e ".[dev]"
+```
+
+创建项目和参与者后，可调用 `POST /api/v1/personas` 创建 Persona，调用
+`POST /api/v1/personas/{id}/train` 生成拓扑与人格 artifact，再调用
+`POST /api/v1/personas/{id}/chat` 获取 SSE 流式回复。所有回复带有 `ai_generated: true`；撤回参与者授权会删除 Persona 的派生数据与对话。
+
 ### 启动
 
 ```bash
@@ -215,7 +238,12 @@ uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
 
 | 方法 | 端点 | 描述 |
 |------|------|------|
+| `GET` | `/api/v1/projects` | 列出所有项目 |
 | `POST` | `/api/v1/projects` | 创建项目 |
+| `GET` | `/api/v1/projects/{id}` | 查询项目详情 |
+| `DELETE` | `/api/v1/projects/{id}` | 删除项目（级联清理） |
+| `GET` | `/api/v1/projects/{id}/participants` | 列出项目参与者 |
+| `DELETE` | `/api/v1/projects/{id}/participants/{pid}` | 删除参与者 |
 | `POST` | `/api/v1/participants` | 添加参与者 |
 | `POST` | `/api/v1/participants/{pid}/sources` | 上传材料 |
 | `POST` | `/api/v1/analysis-runs` | 运行分析 |
@@ -234,6 +262,10 @@ uvicorn hermeneut.api:app --host 127.0.0.1 --port 8000
 | `POST` | `/api/v1/interviews/{session_id}/complete` | 导出 interview JSON 并启动分析 |
 | `POST` | `/api/v1/interviews/{session_id}/withdraw` | 撤回访谈会话 |
 | `POST` | `/api/v1/interviews/{session_id}/reset` | 清零并创建新的访谈会话 |
+| `POST` | `/api/v1/personas` | 创建 TopoStyle Persona |
+| `POST` | `/api/v1/personas/{id}/train` | 训练 Persona 拓扑与人格 |
+| `POST` | `/api/v1/personas/{id}/chat` | Persona 对话（SSE 流式） |
+| `GET` | `/api/v1/health` | 健康检查 |
 
 ### 示例
 
@@ -291,9 +323,13 @@ uvicorn hermeneut.api:app --port 8000  # 访问 http://127.0.0.1:8000
 
 ### 功能
 
+- **任务系统**：多任务对话隔离，每个任务独立消息历史，支持新建/切换/删除/自动命名
+- **垂直图标导航**：左侧图标列（任务/视角/文档/检索/访谈/设置），点击展开对应面板，抽屉式抽拉
+- **开机动画**：品牌标识揭幕动画，系统字体零网络依赖
 - **对话模式**：与专门化话语分析 Agent 进行连贯对话，支持拉康/德勒兹理论框架
 - **分析模式**：输入文本或上传文件（`.txt / .md / .pdf`），流式显示 Observation / Hypothesis / Counterexample 卡片
 - **辩证分析**：一键运行四阶段对抗性辩证管线（Lacan × Deleuze），实时显示进度
+- **TopoStyle Persona**：基于本地 Ollama 的拓扑人格建模，训练 + 对话
 - **视角面板**：查看已注册视角的概念清单与盲点
 - **文档上传**：拖拽上传到 PageIndex 文档系统
 - **语料检索**：搜索已索引的理论文档

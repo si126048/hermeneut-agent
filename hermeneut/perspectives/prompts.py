@@ -42,11 +42,11 @@ def build_perspective_prompts(config: PerspectiveConfig, stage: str) -> str:
         if variant:
             return variant
 
-    from ..llm import CRITIC_SYSTEM, EVIDENCE_SYSTEM, INTERPRETER_SYSTEM
+    from ..formal.prompts import FORMAL_CRITIC_SYSTEM, FORMAL_EVIDENCE_SYSTEM, FORMAL_INTERPRETER_SYSTEM
     base_prompts = {
-        'evidence': EVIDENCE_SYSTEM,
-        'interpreter': INTERPRETER_SYSTEM,
-        'critic': CRITIC_SYSTEM,
+        'evidence': FORMAL_EVIDENCE_SYSTEM,
+        'interpreter': FORMAL_INTERPRETER_SYSTEM,
+        'critic': FORMAL_CRITIC_SYSTEM,
     }
     base = base_prompts.get(stage, '')
     if not base:

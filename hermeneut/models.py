@@ -8,24 +8,66 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator, field_valida
 
 
 class RunState(StrEnum):
-    CREATED='CREATED'; INGESTED='INGESTED'; OBSERVED='OBSERVED'; INTERPRETED='INTERPRETED'; CRITIQUED='CRITIQUED'; NEEDS_HUMAN_REVIEW='NEEDS_HUMAN_REVIEW'; APPROVED='APPROVED'; COMPILED='COMPILED'; FAILED='FAILED'; CANCELLED='CANCELLED'; REVISION_REQUIRED='REVISION_REQUIRED'
+    CREATED = 'CREATED'
+    INGESTED = 'INGESTED'
+    OBSERVED = 'OBSERVED'
+    INTERPRETED = 'INTERPRETED'
+    CRITIQUED = 'CRITIQUED'
+    NEEDS_HUMAN_REVIEW = 'NEEDS_HUMAN_REVIEW'
+    APPROVED = 'APPROVED'
+    COMPILED = 'COMPILED'
+    FAILED = 'FAILED'
+    CANCELLED = 'CANCELLED'
+    REVISION_REQUIRED = 'REVISION_REQUIRED'
+
+
 class ReviewStatus(StrEnum):
-    PROVISIONAL='provisional'; APPROVED='approved'; REJECTED='rejected'; NEEDS_REVISION='needs_revision'
+    PROVISIONAL = 'provisional'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+    NEEDS_REVISION = 'needs_revision'
+
+
 class ReviewDecision(StrEnum):
-    APPROVE='approve'; REJECT='reject'; REVISE='revise'
+    APPROVE = 'approve'
+    REJECT = 'reject'
+    REVISE = 'revise'
+
+
 class ConsentScope(BaseModel):
     withdrawn_at: str | None = None
     expires_at: str | None = None
+
+    def is_active(self) -> bool:
+        if self.withdrawn_at:
+            return False
+        if not self.expires_at:
+            return True
+        try:
+            expiry = datetime.fromisoformat(self.expires_at.replace('Z', '+00:00'))
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=UTC)
+            return expiry > datetime.now(UTC)
+        except ValueError:
+            return False
+
+
 class Project(BaseModel):
     id: str
+    name: str = ''
+    description: str = ''
     policy_version: str = '1.0'
     owner_id: str = 'local-user'
+    created_at: str = ''
+
+
 class Participant(BaseModel):
     id: str
     project_id: str
     pseudonym: str
     consent_scope: ConsentScope
     withdrawn_at: str | None = None
+    created_at: str = ''
 
 
 class InterviewState(StrEnum):
@@ -104,6 +146,8 @@ class InterviewSession(BaseModel):
     audit: list[dict[str, Any]] = Field(default_factory=list)
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+
 class SourceDocument(BaseModel):
     id: str
     project_id: str
@@ -114,8 +158,15 @@ class SourceDocument(BaseModel):
     text: str
     consent_scope: ConsentScope = Field(default_factory=ConsentScope)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class EvidenceSpan(BaseModel):
-    id: str; document_id: str; char_start: int; char_end: int; excerpt: str; excerpt_hash: str
+    id: str
+    document_id: str
+    char_start: int
+    char_end: int
+    excerpt: str
+    excerpt_hash: str
 
     @model_validator(mode='after')
     def _validate_offsets(self):
@@ -124,12 +175,25 @@ class EvidenceSpan(BaseModel):
         if not self.excerpt.strip():
             raise ValueError('empty excerpt')
         return self
+
+
 class ConceptCard(BaseModel):
-    id: str; canonical_name: str; definition: str; theoretical_period: str = 'unspecified'; source_span_ids: list[str] = []; review_status: str = 'draft'
+    id: str
+    canonical_name: str
+    definition: str
+    theoretical_period: str = 'unspecified'
+    source_span_ids: list[str] = Field(default_factory=list)
+    review_status: str = 'draft'
+
+
 class Observation(BaseModel):
-    id: str; label: str; evidence_span_ids: list[str]
+    id: str
+    label: str
+    evidence_span_ids: list[str]
     rsi_register: str | None = Field(default=None, alias='register')
     register_markers: list[str] = Field(default_factory=list)
+
+
 class Counterexample(BaseModel):
     id: str
     text: str
@@ -147,8 +211,13 @@ class Counterexample(BaseModel):
 
     def __contains__(self, value: str) -> bool:
         return value in self.text or value in self.id
+
+
 class Hypothesis(BaseModel):
-    id: str; concept_ids: list[str]; support_ids: list[str]; alternatives: list[str]
+    id: str
+    concept_ids: list[str]
+    support_ids: list[str]
+    alternatives: list[str]
     counterexamples: list[Counterexample] = Field(default_factory=list)
     status: ReviewStatus = ReviewStatus.PROVISIONAL
     theory_reference_ids: list[str] = Field(default_factory=list)
@@ -172,14 +241,41 @@ class Hypothesis(BaseModel):
                 for index, item in enumerate(values['counterexamples'])
             ]
         return values
+
+
 class GraphNode(BaseModel):
-    id: str; type: str; label: str; source_ids: list[str] = []; status: str = 'provisional'
+    id: str
+    type: str
+    label: str
+    source_ids: list[str] = Field(default_factory=list)
+    status: str = 'provisional'
+
+
 class GraphEdge(BaseModel):
-    id: str; source: str; target: str; type: str; evidence_span_ids: list[str]; weight: float | None = None
+    id: str
+    source: str
+    target: str
+    type: str
+    evidence_span_ids: list[str]
+    weight: float | None = None
+
+
 class NarrativeOperator(BaseModel):
-    id: str; operator: str; source_finding_ids: list[str]; allowed: bool = False; use_cases: list[str] = []; counterexamples: list[Counterexample] = Field(default_factory=list); approval_state: str = 'provisional'
+    id: str
+    operator: str
+    source_finding_ids: list[str]
+    allowed: bool = False
+    use_cases: list[str] = Field(default_factory=list)
+    counterexamples: list[Counterexample] = Field(default_factory=list)
+    approval_state: str = 'provisional'
+
+
 class PointDeCapiton(BaseModel):
-    id: str; signifier: str; fixation_span_ids: list[str] = []; duration: int = 0; centrality: float = 0.0
+    id: str
+    signifier: str
+    fixation_span_ids: list[str] = Field(default_factory=list)
+    duration: int = 0
+    centrality: float = 0.0
 
     @field_validator('duration', mode='before')
     @classmethod
@@ -187,68 +283,121 @@ class PointDeCapiton(BaseModel):
         if isinstance(v, float):
             return int(v)
         return v
+
+
 class DesireResidual(BaseModel):
-    demand_surface: str; need_object: str | None = None; residual_score: float = 0.0
+    demand_surface: str
+    need_object: str | None = None
+    residual_score: float = 0.0
 
     @model_validator(mode='after')
     def _validate_residual_range(self):
         if not (0.0 <= self.residual_score <= 1.0):
             raise ValueError(f'residual_score must be in [0, 1], got {self.residual_score}')
         return self
+
+
 class CulturalAnnotation(BaseModel):
-    id: str; span_id: str; entity_name: str; entity_type: str; confidence: float = 1.0; context_brief: str = ''; source: str = 'gazetteer'
+    id: str
+    span_id: str
+    entity_name: str
+    entity_type: str
+    confidence: float = 1.0
+    context_brief: str = ''
+    source: str = 'gazetteer'
 
     @model_validator(mode='after')
     def _validate_confidence(self):
         if not (0.0 <= self.confidence <= 1.0):
             raise ValueError(f'confidence must be in [0, 1], got {self.confidence}')
         return self
+
+
 class AnalysisPacket(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
-    run_id: str; participant_id: str; state: RunState; observations: list[Observation] = []; hypotheses: list[Hypothesis] = []; narrative_operators: list[NarrativeOperator] = []; errors: list[str] = []; cultural_annotations: list[CulturalAnnotation] = []; hallucination_reports: list[dict[str, Any]] = []
+    run_id: str
+    participant_id: str
+    state: RunState
+    observations: list[Observation] = Field(default_factory=list)
+    hypotheses: list[Hypothesis] = Field(default_factory=list)
+    narrative_operators: list[NarrativeOperator] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    cultural_annotations: list[CulturalAnnotation] = Field(default_factory=list)
+    hallucination_reports: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class AnalysisRun(BaseModel):
-    id: str; project_id: str; participant_id: str; source_ids: list[str]; state: RunState; idempotency_key: str; packet: AnalysisPacket | None = None; audit: list[dict[str, Any]] = []; topology: dict[str, Any] = {}
+    id: str
+    project_id: str
+    participant_id: str
+    source_ids: list[str]
+    state: RunState
+    idempotency_key: str
+    packet: AnalysisPacket | None = None
+    audit: list[dict[str, Any]] = Field(default_factory=list)
+    topology: dict[str, Any] = Field(default_factory=dict)
+
+
 class ReviewRequest(BaseModel):
-    reviewer_id: str; decision: ReviewDecision; reason: str = ''
+    reviewer_id: str
+    decision: ReviewDecision
+    reason: str = ''
+
+
 class ErrorBody(BaseModel):
-    code: str; message: str; request_id: str
+    code: str
+    message: str
+    request_id: str
+
+
 class ErrorResponse(BaseModel):
     error: ErrorBody
+
 
 class PerspectiveConfig(BaseModel):
     id: str
     name: str
-    concept_inventory: list[str] = []
-    blind_spots: list[str] = []
-    vocabulary: dict[str, str] = {}
+    concept_inventory: list[str] = Field(default_factory=list)
+    blind_spots: list[str] = Field(default_factory=list)
+    vocabulary: dict[str, str] = Field(default_factory=dict)
     evidence_prompt_variant: str | None = None
     interpreter_prompt_variant: str | None = None
     critique_prompt_variant: str | None = None
+
+
 class PerspectiveAnalysis(BaseModel):
     perspective_id: str
-    observations: list[Observation] = []
-    hypotheses: list[Hypothesis] = []
-    grounding_summary: dict[str, Any] = {}
+    observations: list[Observation] = Field(default_factory=list)
+    hypotheses: list[Hypothesis] = Field(default_factory=list)
+    grounding_summary: dict[str, Any] = Field(default_factory=dict)
+
+
 class CrossCritique(BaseModel):
     source_perspective_id: str
     target_perspective_id: str
-    counterexamples: list[Counterexample] = []
-    blind_spot_alerts: list[str] = []
-    epistemic_gaps: list[str] = []
-    page_references: list[dict[str, Any]] = []
+    counterexamples: list[Counterexample] = Field(default_factory=list)
+    blind_spot_alerts: list[str] = Field(default_factory=list)
+    epistemic_gaps: list[str] = Field(default_factory=list)
+    page_references: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class SynthesisReport(BaseModel):
-    convergence: list[dict[str, Any]] = []
-    divergence: list[dict[str, Any]] = []
-    unique_insights: list[dict[str, Any]] = []
-    meta_critique: list[str] = []
-    recommended_hypotheses: list[str] = []
+    convergence: list[dict[str, Any]] = Field(default_factory=list)
+    divergence: list[dict[str, Any]] = Field(default_factory=list)
+    unique_insights: list[dict[str, Any]] = Field(default_factory=list)
+    meta_critique: list[str] = Field(default_factory=list)
+    recommended_hypotheses: list[str] = Field(default_factory=list)
+
+
 class DialecticalResult(BaseModel):
     run_id: str
     perspective_ids: list[str]
-    phase1_analyses: list[PerspectiveAnalysis] = []
-    phase2_cross_critiques: list[CrossCritique] = []
+    phase1_analyses: list[PerspectiveAnalysis] = Field(default_factory=list)
+    phase2_cross_critiques: list[CrossCritique] = Field(default_factory=list)
     phase3_synthesis: SynthesisReport | None = None
     phase4_report: str | None = None
+
+
 class PageEvidenceSpan(BaseModel):
     id: str
     doc_id: str
@@ -257,4 +406,4 @@ class PageEvidenceSpan(BaseModel):
     char_end: int = 0
     excerpt: str = ''
     excerpt_hash: str = ''
-    outline_path: list[str] = []
+    outline_path: list[str] = Field(default_factory=list)
